@@ -10,9 +10,9 @@ import java.util.NoSuchElementException;
 public final class None<T> implements Option<T>, Serializable {
     public static None INSTANCE = new None<>();
 
-    public static <T> None<T> instance() {
+    public static <T> Option<T> instance() {
         //noinspection unchecked
-        return (None<T>) INSTANCE;
+        return (Option<T>) INSTANCE;
     }
 
     // There is only one None instance which is defined above as INSTANCE.
