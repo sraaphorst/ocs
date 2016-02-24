@@ -94,18 +94,18 @@ object AgsStrategy {
 
       // If this is different from the old automatic GG, then replace.
       val oldGuideEnvironment = env.getGuideEnvironment
-      val oldGuideEnv         = oldGuideEnvironment.guideEnv
+      val oldGuideEnv = oldGuideEnvironment.guideEnv
 
       // SPTargets are compared by references, so we extract the names and compare.
       def extractNames(auto: AutomaticGroup) = auto.targetMap.map(_.getName)
 
-      if (extractNames(oldGuideEnv.auto) =/= extractNames(newAuto)) {
-        val newGuideEnv = oldGuideEnv.copy(auto = newAuto)
-        val newGuideEnvironment = oldGuideEnvironment.copy(guideEnv = newGuideEnv)
-        env.setGuideEnvironment(newGuideEnvironment)
-      } else {
-        env
-      }
+      //if (extractNames(oldGuideEnv.auto) =/= extractNames(newAuto)) {
+      val newGuideEnv = oldGuideEnv.copy(auto = newAuto)
+      val newGuideEnvironment = oldGuideEnvironment.copy(guideEnv = newGuideEnv)
+      env.setGuideEnvironment(newGuideEnvironment)
+      //} else {
+      //        env
+      //      }
     }
 
     def applyTo(ctx: ObsContext): ObsContext = {
