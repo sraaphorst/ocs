@@ -278,7 +278,37 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         });
     }
 
-    @Override public void init() {
+    /**
+     * Determine whether or not the auto group has changed when the target environment is replaced.
+     */
+    @Override protected final Object initHandOff(final TargetObsComp oldTOC) {
+        final TargetObsComp newTOC = getDataObject();
+
+        // If either is null, we have nothing to compare, so assume the auto group has changed
+        // to ensure full initialization of the components.
+        if (newTOC == null || oldTOC == null) return true;
+
+        // Extract the target environments and check if the auto groups have changed.
+        final TargetEnvironment oldEnv    = oldTOC.getTargetEnvironment();
+        final TargetEnvironment newEnv    = newTOC.getTargetEnvironment();
+        final Option<GuideGroup> oldGpOpt = oldEnv.getGroups().headOption().filter(GuideGroup::isAutomatic);
+        final Option<GuideGroup> newGpOpt = newEnv.getGroups().headOption().filter(GuideGroup::isAutomatic);
+
+        // We only want to return false if the two groups exist and contain the same targets.
+        return oldGpOpt.forall(oldGp ->
+            newGpOpt.forall(newGp -> {
+                // Extract the target names.
+                final List<String> oldNames = oldGp.getTargets().map(SPTarget::getName).toList();
+                final List<String> newNames = newGp.getTargets().map(SPTarget::getName).toList();
+                return !(oldNames.size() == newNames.size() && oldNames.containsAll(newNames));
+            })
+        );
+    }
+
+    @Override public void init(final Object autoGroupChangedObj) {
+        final boolean autoGroupChanged = ImOption.apply(autoGroupChangedObj).map(v -> (boolean)v).getOrElse(true);
+        System.err.println("*** EdCompTargetList.init : autoGroupChanged=" + autoGroupChanged);
+
         final ISPObsComponent node = getContextTargetObsComp();
         TargetSelection.listenTo(node, selectionListener);
 

@@ -217,10 +217,10 @@ object BagsManager {
       // Calculate the new target environment and if they are different, apply them.
       ctx.targets.dataObject.foreach { targetComp =>
         val newEnv = sel.applyTo(oldEnv)
-        if (newEnv != oldEnv) {
+        //if (newEnv != oldEnv) {
           targetComp.setTargetEnvironment(newEnv)
           ctx.targets.commit()
-        }
+        //}
       }
 
       // See if the pos angle has changed and set it.

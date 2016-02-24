@@ -110,19 +110,39 @@ public abstract class OtItemEditor<N extends ISPNode, T extends ISPDataObject> {
         if (_node != null)
             cleanup();
 
-        this._node = node;
-        this._dataObject = (_node != null) ? (T) _node.getDataObject() : null;
+        this._node            = node;
+        final T oldDataObject = this._dataObject;
+        this._dataObject      = (_node != null) ? (T) _node.getDataObject() : null;
+        final Object handOff  = initHandOff(oldDataObject);
+
         final boolean editable = OTOptions.areRootAndCurrentObsIfAnyEditable(getProgram(), getContextObservation());
-        init();
+        init(handOff);
         updateEnabledState(editable);
     }
 
+    /**
+     * Called by init with the old data object in order to allow subclasses to perform special
+     * handling with knowledge of the contents of both the old and new data objects.
+     */
+    protected Object initHandOff(final T oldDataObject) {
+        return null;
+    }
 
     /**
-     * Subclasses should use this to perform initialization. The viewable and data object will have
-     * been set, but enabled state calculations have not yet happened.
+     * Subclasses that require a hand-off result produced by overriding initHandoff should use
+     * this to perform initialization.
+     * The viewable and data object will have been set, but the enabled state calculations have not yet happened.
      */
-    protected abstract void init();
+    protected void init(final Object handOff) {
+        init();
+    }
+
+    /**
+     * Subclasses that do not require a hand-off result should use this to perform initialization.
+     * The viewable and data object will have been set, but enabled state calculations have not yet happened.
+     */
+    protected void init() {
+    }
 
     /**
      * Subclasses can override to remove listeners and clean up resources associated with the
