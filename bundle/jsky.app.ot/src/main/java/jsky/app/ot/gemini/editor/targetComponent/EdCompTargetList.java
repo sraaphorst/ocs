@@ -287,6 +287,8 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, guidingPanelUpdater);
 
         final TargetEnvironment env = obsComp.getTargetEnvironment();
+
+        // TODO: Why are we setting twice?
         setSelectionToTarget(env.getBase());
         final SPTarget selTarget = TargetSelection.getTargetForNode(env, node).getOrNull();
         manageCurPosIfEnvContainsTarget(selTarget, () -> setSelectionToTarget(selTarget));
