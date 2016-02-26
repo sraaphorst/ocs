@@ -9,7 +9,7 @@ import java.util.logging.{Level, Logger}
 
 import edu.gemini.ags.api.{AgsHash, AgsRegistrar, AgsStrategy}
 import edu.gemini.catalog.votable.{CatalogException, GenericError}
-import edu.gemini.pot.sp.{ISPObservationContainer, ISPNode, ISPProgram, ISPObservation, SPNodeKey}
+import edu.gemini.pot.sp._
 import edu.gemini.spModel.core.SPProgramID
 import edu.gemini.spModel.guide.GuideProbe
 import edu.gemini.spModel.obs.{SPObservation, ObservationStatus}
@@ -102,11 +102,12 @@ final class BagsManager(executorService: ExecutorService) {
   def enqueue(observation: ISPObservation, delay: Long): Unit = {
     def isEligibleForBags(ctx: ObsContext): Boolean = {
       // TODO: There should also be checks for observed, to rule out GPI, etc. here.
-      ctx.getTargets.getGuideEnvironment.guideEnv.auto match {
+      val enabledGroup = ctx.getTargets.getGuideEnvironment.guideEnv.auto match {
         case AutomaticGroup.Initial   => true
         case AutomaticGroup.Active(_) => true
         case _                        => false
       }
+      enabledGroup && (ctx.getInstrument.getType != SPComponentType.INSTRUMENT_GPI)
     }
 
     def hasBeenUpdated(o: ISPObservation, ctx: ObsContext): Boolean = {
@@ -116,6 +117,10 @@ final class BagsManager(executorService: ExecutorService) {
       val curHash = Option(hashes.get(key))
       hashes.put(key, newHash)
       !curHash.contains(newHash)
+    }
+
+    def notObserved(o: ISPObservation): Boolean = {
+      ObservationStatus.computeFor(o) != ObservationStatus.OBSERVED
     }
 
     Option(observation).foreach { obs =>
@@ -128,7 +133,7 @@ final class BagsManager(executorService: ExecutorService) {
           // or (b) we don't care about that program anymore, so we're done.
           if (dequeue(key, obs.getProgramID)) {
             // Otherwise construct an obs context, verify that it's bagworthy, and go
-            ObsContext.create(obs).asScalaOpt.filter(ctx => isEligibleForBags(ctx) && hasBeenUpdated(obs, ctx)).foreach { ctx =>
+            ObsContext.create(obs).asScalaOpt.filter(ctx => isEligibleForBags(ctx) && hasBeenUpdated(obs, ctx) && notObserved(obs)).foreach { ctx =>
               //   do the lookup
               //   on success {
               //      if we're in the queue again, it means something changed while this task was
@@ -147,17 +152,14 @@ final class BagsManager(executorService: ExecutorService) {
                     // was running, so discard the result.
                     if (!state.keys(key)) {
                       LOG.info(s"$bagsIdMsg successful. Results=${opt ? "Yes" | "No"}.")
-                      if (ObservationStatus.computeFor(obs) != ObservationStatus.OBSERVED) {
-                        Swing.onEDT {
-                          obs.getProgram.removeCompositeChangeListener(CompositePropertyChangeListener)
-                          obs.getProgram.removeStructureChangeListener(StructurePropertyChangeListener)
-                          BagsManager.applyResults(TpeContext(obs), opt)
-                          obs.getProgram.addStructureChangeListener(StructurePropertyChangeListener)
-                          obs.getProgram.addCompositeChangeListener(CompositePropertyChangeListener)
-                        }
+                      Swing.onEDT {
+                        obs.getProgram.removeCompositeChangeListener(CompositePropertyChangeListener)
+                        obs.getProgram.removeStructureChangeListener(StructurePropertyChangeListener)
+                        BagsManager.applyResults(TpeContext(obs), opt)
+                        obs.getProgram.addStructureChangeListener(StructurePropertyChangeListener)
+                        obs.getProgram.addCompositeChangeListener(CompositePropertyChangeListener)
                       }
                     }
-
 
                   // We don't want to print the stack trace if the host is simply unreachable.
                   // This is reported only as a GenericError in a CatalogException, unfortunately.
