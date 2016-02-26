@@ -1,16 +1,18 @@
 package jsky.app.ot.ags
 
 import java.beans.{PropertyChangeEvent, PropertyChangeListener}
+import java.time.Instant
+import java.util
 import java.util.concurrent.TimeoutException
 import java.util.concurrent._
 import java.util.logging.{Level, Logger}
 
-import edu.gemini.ags.api.{AgsRegistrar, AgsStrategy}
+import edu.gemini.ags.api.{AgsHash, AgsRegistrar, AgsStrategy}
 import edu.gemini.catalog.votable.{CatalogException, GenericError}
 import edu.gemini.pot.sp.{ISPObservationContainer, ISPNode, ISPProgram, ISPObservation, SPNodeKey}
 import edu.gemini.spModel.core.SPProgramID
 import edu.gemini.spModel.guide.GuideProbe
-import edu.gemini.spModel.obs.ObservationStatus
+import edu.gemini.spModel.obs.{SPObservation, ObservationStatus}
 import edu.gemini.spModel.obs.context.ObsContext
 import edu.gemini.spModel.rich.shared.immutable._
 import edu.gemini.spModel.target.env.AutomaticGroup
@@ -49,6 +51,12 @@ final class BagsManager(executorService: ExecutorService) {
     def -(pid: SPProgramID): BagsState = copy(programs = programs - pid)
   }
   @volatile private var state: BagsState = BagsState(Set.empty, Set.empty)
+
+  // Setup an LRU cach with max entries BagsManager.CacheSize
+  private val hashes = new util.LinkedHashMap[SPNodeKey, Int](math.ceil((BagsManager.CacheSize + 1) * 1.334).toInt, 0.75f, true) {
+    override def removeEldestEntry(e: java.util.Map.Entry[SPNodeKey, Int]): Boolean =
+      size > BagsManager.CacheSize
+  }
 
   /**
     * Atomically add a program to our watch list and attach listeners.
@@ -93,11 +101,21 @@ final class BagsManager(executorService: ExecutorService) {
     */
   def enqueue(observation: ISPObservation, delay: Long): Unit = {
     def isEligibleForBags(ctx: ObsContext): Boolean = {
+      // TODO: There should also be checks for observed, to rule out GPI, etc. here.
       ctx.getTargets.getGuideEnvironment.guideEnv.auto match {
         case AutomaticGroup.Initial   => true
         case AutomaticGroup.Active(_) => true
         case _                        => false
       }
+    }
+
+    def hasBeenUpdated(o: ISPObservation, ctx: ObsContext): Boolean = {
+      val key     = o.getNodeKey
+      val when    = o.getDataObject.asInstanceOf[SPObservation].getSchedulingBlock.asScalaOpt.map(_.start) | Instant.now.toEpochMilli
+      val newHash = AgsHash.hash(ctx, when)
+      val curHash = Option(hashes.get(key))
+      hashes.put(key, newHash)
+      !curHash.contains(newHash)
     }
 
     Option(observation).foreach { obs =>
@@ -110,7 +128,7 @@ final class BagsManager(executorService: ExecutorService) {
           // or (b) we don't care about that program anymore, so we're done.
           if (dequeue(key, obs.getProgramID)) {
             // Otherwise construct an obs context, verify that it's bagworthy, and go
-            ObsContext.create(obs).asScalaOpt.filter(isEligibleForBags).foreach { ctx =>
+            ObsContext.create(obs).asScalaOpt.filter(ctx => isEligibleForBags(ctx) && hasBeenUpdated(obs, ctx)).foreach { ctx =>
               //   do the lookup
               //   on success {
               //      if we're in the queue again, it means something changed while this task was
@@ -183,6 +201,11 @@ final class BagsManager(executorService: ExecutorService) {
 }
 
 object BagsManager {
+  /** Determines how many observation's AGS hash result will be kept in the
+    * LRU cache.
+    */
+  val CacheSize = 10000
+
   val instance = {
     // Limit execution of futures in the BagsManager instance to an execution context with NumWorkers threads.
     val NumWorkers = math.max(1, Runtime.getRuntime.availableProcessors - 1)
