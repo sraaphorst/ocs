@@ -307,18 +307,6 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         final Option<GuideGroup> oldGpOpt = oldEnv.getGroups().headOption().filter(GuideGroup::isAutomatic);
         final Option<GuideGroup> newGpOpt = newEnv.getGroups().headOption().filter(GuideGroup::isAutomatic);
 
-        // TODO: The targets here are CLONED, as opposed to when a target is simply added, in which case, the
-        // TODO: targets are NOT cloned. This is causing issues in TelescopePosTableWidget when it tries to find
-        // TODO: row indices for specific targets by comparing by reference since the cloned targets do not
-        // TODO: appear in the old table until the new data model is built, so None is always returned.
-        // TODO: Why is this cloned? Can't we just replace the auto group? I am confused.
-
-        // TODO: Check what happens when a new target and guide group are added VERSUS what happens when the auto
-        // TODO: group is assigned by AgsStrategy.
-        // TODO: Note that EVEN when we just select a new primary, the targets appear to be cloned. Why???
-        //final ImList<SPTarget> oldTargets = oldEnv.getTargets();
-        //final ImList<SPTarget> newTargets = newEnv.getTargets();
-
         // We only want to return false if the two groups exist and contain the same targets.
         return oldGpOpt.forall(oldGp ->
             newGpOpt.forall(newGp -> {

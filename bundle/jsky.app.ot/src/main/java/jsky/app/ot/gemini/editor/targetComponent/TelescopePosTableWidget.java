@@ -602,19 +602,7 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
         stopWatchingSelection();
         stopWatchingEnv();
 
-        // TODO: I am so confused.
-        // TODO: dataObject comes from EdCompTargetList and is TargetObsComp obsComp = getDataObject();
-        // TODO: _obsComp comes from EdCompTargetList owner and is an ISPObsComponent.
         final TargetObsComp oldTOC = _dataObject;
-        //_obsComp     = owner.getContextTargetObsComp();
-        //_dataObject  = newTOC;
-
-
-        // TODO: This should get the same target as in the EdCompTargetList.
-        // TODO: We should also manage groups here as well.
-        // TODO: I don't even think that rowIndexForTarget will properly work now? It returns None because targets are cloned.
-        // TODO: We may need to get the index BEFORE _resetTable and then try to convert it to an index AFTER the table has
-        // TODO: been reset.
 
         // Determine what, if anything, is selected.
         final Option<Integer> selIndex = ImOption.apply(oldTOC).flatMap(toc -> {
@@ -701,11 +689,6 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             final TargetEnvironment oldEnv = (TargetEnvironment) evt.getOldValue();
             final TargetEnvironment newEnv = (TargetEnvironment) evt.getNewValue();
 
-            // TODO: Remove these. They appear to NOT have the issue of cloned targets, unlike in the init method
-            // TODO: of EdCompTargetList when auto group changes.
-            final ImList<SPTarget> oldTargets = oldEnv.getTargets();
-            final ImList<SPTarget> newTargets = newEnv.getTargets();
-
             final TargetEnvironmentDiff diff = TargetEnvironmentDiff.all(oldEnv, newEnv);
             final Collection<SPTarget> rmTargets  = diff.getRemovedTargets();
             final Collection<SPTarget> addTargets = diff.getAddedTargets();
@@ -728,7 +711,6 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
                 return;
             }
 
-            // TODO: This probably won't work, as the targets will have been cloned.
             // If obs comp has a selected target, then honor it.
             final Option<SPTarget> newSelectedTarget = TargetSelection.getTargetForNode(_env, _obsComp);
             if (newSelectedTarget.isDefined()) {
@@ -748,7 +730,6 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             }
 
             // Try to select the same target that was selected before, if it is there in the new table.
-            // TODO: This probably won't work, as the targets will have been cloned.
             if (oldSelTarget.exists(t -> _tableData.rowIndexForTarget(t).isDefined())) {
                 oldSelTarget.foreach(TelescopePosTableWidget.this::selectTarget);
                 return;
