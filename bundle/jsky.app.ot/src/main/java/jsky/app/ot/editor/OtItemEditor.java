@@ -110,35 +110,29 @@ public abstract class OtItemEditor<N extends ISPNode, T extends ISPDataObject> {
         if (_node != null)
             cleanup();
 
+        final N oldNode       = this._node;
         this._node            = node;
         final T oldDataObject = this._dataObject;
         this._dataObject      = (_node != null) ? (T) _node.getDataObject() : null;
-        final Object handOff  = initHandOff(oldDataObject);
 
         final boolean editable = OTOptions.areRootAndCurrentObsIfAnyEditable(getProgram(), getContextObservation());
-        init(handOff);
+        init(oldNode, oldDataObject);
         updateEnabledState(editable);
     }
 
-    /**
-     * Called by init with the old data object in order to allow subclasses to perform special
-     * handling with knowledge of the contents of both the old and new data objects.
-     */
-    protected Object initHandOff(final T oldDataObject) {
-        return null;
-    }
 
     /**
-     * Subclasses that require a hand-off result produced by overriding initHandoff should use
-     * this to perform initialization.
+     * Subclasses that require the previous node and data object in order to determine how to properly init
+     * should override this method to perform initialization.
      * The viewable and data object will have been set, but the enabled state calculations have not yet happened.
      */
-    protected void init(final Object handOff) {
+    protected void init(final N oldNode, final T oldDataObject) {
         init();
     }
 
     /**
-     * Subclasses that do not require a hand-off result should use this to perform initialization.
+     * Subclasses that do not require the previous node and data object in order to determine how to properly init
+     * should override this method to perform initialization.
      * The viewable and data object will have been set, but enabled state calculations have not yet happened.
      */
     protected void init() {

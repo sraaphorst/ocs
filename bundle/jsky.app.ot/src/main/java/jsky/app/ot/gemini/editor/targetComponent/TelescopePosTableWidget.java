@@ -579,10 +579,17 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
         }
     }
 
+    // Auxiliary method to extract the size of the automatic group from a TargetObsComp.
+    private static int autoGroupSize(final TargetObsComp toc) {
+        return ImOption.apply(toc).map(TargetObsComp::getTargetEnvironment)
+                .flatMap(env -> env.getGroups().headOption().filter(GuideGroup::isAutomatic)
+                .map(gg -> gg.getTargets().size())).getOrElse(0);
+    }
+
     /**
      * Reinitialize the table.
      */
-    public void reinit(final TargetObsComp dataObject) {
+    public void reinit(final TargetObsComp newTOC, final boolean autoGroupChanged) {
         dragSource.setEditable(false);
         dropTarget.setEditable(false);
 
@@ -595,25 +602,53 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
         stopWatchingSelection();
         stopWatchingEnv();
 
-        // Watch the new list, and add all of its positions at once
-        _obsComp    = owner.getContextTargetObsComp();
-        _dataObject = dataObject;
+        // TODO: I am so confused.
+        // TODO: dataObject comes from EdCompTargetList and is TargetObsComp obsComp = getDataObject();
+        // TODO: _obsComp comes from EdCompTargetList owner and is an ISPObsComponent.
+        final TargetObsComp oldTOC = _dataObject;
+        //_obsComp     = owner.getContextTargetObsComp();
+        //_dataObject  = newTOC;
 
-        startWatchingEnv();
-        startWatchingSelection();
 
-        final TargetEnvironment env = _dataObject.getTargetEnvironment();
-        env.getTargets().foreach(t -> t.addWatcher(TelescopePosTableWidget.this));
+        // TODO: This should get the same target as in the EdCompTargetList.
+        // TODO: We should also manage groups here as well.
+        // TODO: I don't even think that rowIndexForTarget will properly work now? It returns None because targets are cloned.
+        // TODO: We may need to get the index BEFORE _resetTable and then try to convert it to an index AFTER the table has
+        // TODO: been reset.
 
-        final Option<SPTarget> tpOpt = TargetSelection.getTargetForNode(_dataObject.getTargetEnvironment(), _obsComp);
+        // Determine what, if anything, is selected.
+        final Option<Integer> selIndex = ImOption.apply(oldTOC).flatMap(toc -> {
+            final TargetEnvironment oldEnv         = oldTOC.getTargetEnvironment();
+            return ImOption.apply(_tableData).flatMap(td -> {
+                final Option<SPTarget> tpOpt           = TargetSelection.getTargetForNode(oldEnv, _obsComp);
+                final Option<Integer> tpIndex          = tpOpt.flatMap(_tableData::rowIndexForTarget);
+                final Option<IndexedGuideGroup> iggOpt = TargetSelection.getIndexedGuideGroupForNode(oldEnv, _obsComp);
+                final Option<Integer> iggIndex         = iggOpt.map(IndexedGuideGroup::index).flatMap(_tableData::rowIndexForGroupIndex);
+                return tpIndex.orElse(iggIndex);
+            });
+        });
+
+        // Reset the table.
+        _obsComp     = owner.getContextTargetObsComp();
+        _dataObject  = newTOC;
+        final TargetEnvironment newEnv = newTOC.getTargetEnvironment();
         _resetTable(_dataObject.getTargetEnvironment());
 
-        final Option<Integer> index = tpOpt.flatMap(_tableData::rowIndexForTarget);
-        if (index.isDefined()) {
-            _setSelectedRow(index.getValue());
+        // Now we need to reset the selection if possible.
+        // We have to take into account whether the auto group has changed and how.
+        final int rowAdjustment = autoGroupChanged ? (autoGroupSize(newTOC) - autoGroupSize(oldTOC)) : 0;
+
+        // Set the selection accordingly.
+        if (selIndex.isDefined()) {
+            selIndex.foreach(idx -> _setSelectedRow(idx + rowAdjustment));
         } else {
             selectBasePos();
         }
+
+        // Now we can restart watching the changes as the env has been set and the selection made.
+        startWatchingEnv();
+        startWatchingSelection();
+        newEnv.getTargets().foreach(t -> t.addWatcher(TelescopePosTableWidget.this));
 
         final boolean editable = OTOptions.isEditable(owner.getProgram(), owner.getContextObservation());
         dragSource.setEditable(editable);
@@ -666,6 +701,11 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             final TargetEnvironment oldEnv = (TargetEnvironment) evt.getOldValue();
             final TargetEnvironment newEnv = (TargetEnvironment) evt.getNewValue();
 
+            // TODO: Remove these. They appear to NOT have the issue of cloned targets, unlike in the init method
+            // TODO: of EdCompTargetList when auto group changes.
+            final ImList<SPTarget> oldTargets = oldEnv.getTargets();
+            final ImList<SPTarget> newTargets = newEnv.getTargets();
+
             final TargetEnvironmentDiff diff = TargetEnvironmentDiff.all(oldEnv, newEnv);
             final Collection<SPTarget> rmTargets  = diff.getRemovedTargets();
             final Collection<SPTarget> addTargets = diff.getAddedTargets();
@@ -688,6 +728,7 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
                 return;
             }
 
+            // TODO: This probably won't work, as the targets will have been cloned.
             // If obs comp has a selected target, then honor it.
             final Option<SPTarget> newSelectedTarget = TargetSelection.getTargetForNode(_env, _obsComp);
             if (newSelectedTarget.isDefined()) {
@@ -707,6 +748,7 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             }
 
             // Try to select the same target that was selected before, if it is there in the new table.
+            // TODO: This probably won't work, as the targets will have been cloned.
             if (oldSelTarget.exists(t -> _tableData.rowIndexForTarget(t).isDefined())) {
                 oldSelTarget.foreach(TelescopePosTableWidget.this::selectTarget);
                 return;
