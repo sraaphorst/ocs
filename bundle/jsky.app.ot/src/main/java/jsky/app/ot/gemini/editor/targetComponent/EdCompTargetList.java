@@ -1,6 +1,7 @@
 package jsky.app.ot.gemini.editor.targetComponent;
 
 import edu.gemini.pot.sp.ISPObsComponent;
+import edu.gemini.pot.sp.SPNodeKey;
 import edu.gemini.shared.skyobject.Magnitude;
 import edu.gemini.shared.util.immutable.*;
 import edu.gemini.spModel.guide.GuideProbe;
@@ -259,12 +260,12 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
 
     // Common code to manage the position watcher on the current position around an action that modifies it.
     // We also check for the presence of a specified target in the target environment.
-    private void manageCurPosIfEnvContainsTarget(final SPTarget target, final Runnable action) {
+    private boolean manageCurPosIfEnvContainsTarget(final SPTarget target, final Runnable action) {
         final TargetObsComp obsComp = getDataObject();
-        if (obsComp == null) return;
+        if (obsComp == null) return false;
 
         final TargetEnvironment env = obsComp.getTargetEnvironment();
-        if (env == null || !env.getTargets().contains(target)) return;
+        if (env == null || !env.getTargets().contains(target)) return false;
 
         // If current selection is a target, remove the posWatcher.
         selectedTarget().foreach(t -> t.deleteWatcher(posWatcher));
@@ -276,23 +277,47 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
             t.addWatcher(posWatcher);
             refreshAll();
         });
+        return true;
     }
 
     /**
-     * Determine whether or not the auto group has changed when the target environment is replaced.
+     * Determine whether or not the auto group has changed for a specific observation.
      */
-    @Override protected final Object initHandOff(final TargetObsComp oldTOC) {
+    private boolean autoGroupChanged(final ISPObsComponent oldObsComp, final TargetObsComp oldTOC) {
         final TargetObsComp newTOC = getDataObject();
 
-        // If either is null, we have nothing to compare, so assume the auto group has changed
-        // to ensure full initialization of the components.
-        if (newTOC == null || oldTOC == null) return true;
+        // If either of the TargetObsComps are null, this was not triggered by an auto group change.
+        if (oldTOC == null || newTOC == null) {
+            return false;
+        }
+
+        // If either of the node keys are null, or they are defined but different, this is not an auto group change.
+        final SPNodeKey oldNodeKey = ImOption.apply(oldObsComp).map(ISPObsComponent::getNodeKey).getOrNull();
+        final SPNodeKey newNodeKey = ImOption.apply(getNode()).map(ISPObsComponent::getNodeKey).getOrNull();
+        if (oldNodeKey == null || newNodeKey == null) {
+            return false;
+        }
+        if (!oldNodeKey.equals(newNodeKey)) {
+            return false;
+        }
 
         // Extract the target environments and check if the auto groups have changed.
         final TargetEnvironment oldEnv    = oldTOC.getTargetEnvironment();
         final TargetEnvironment newEnv    = newTOC.getTargetEnvironment();
         final Option<GuideGroup> oldGpOpt = oldEnv.getGroups().headOption().filter(GuideGroup::isAutomatic);
         final Option<GuideGroup> newGpOpt = newEnv.getGroups().headOption().filter(GuideGroup::isAutomatic);
+
+        // TODO: The targets here are CLONED, as opposed to when a target is simply added, in which case, the
+        // TODO: targets are NOT cloned. This is causing issues in TelescopePosTableWidget when it tries to find
+        // TODO: row indices for specific targets by comparing by reference since the cloned targets do not
+        // TODO: appear in the old table until the new data model is built, so None is always returned.
+        // TODO: Why is this cloned? Can't we just replace the auto group? I am confused.
+
+        // TODO: Check what happens when a new target and guide group are added VERSUS what happens when the auto
+        // TODO: group is assigned by AgsStrategy.
+        // TODO: Note that EVEN when we just select a new primary, the targets appear to be cloned. Why???
+        //final ImList<SPTarget> oldTargets = oldEnv.getTargets();
+        //final ImList<SPTarget> newTargets = newEnv.getTargets();
 
         // We only want to return false if the two groups exist and contain the same targets.
         return oldGpOpt.forall(oldGp ->
@@ -305,8 +330,8 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         );
     }
 
-    @Override public void init(final Object autoGroupChangedObj) {
-        final boolean autoGroupChanged = ImOption.apply(autoGroupChangedObj).map(v -> (boolean)v).getOrElse(true);
+    @Override public void init(final ISPObsComponent oldNode, final TargetObsComp oldDataObject) {
+        final boolean autoGroupChanged = autoGroupChanged(oldNode, oldDataObject);
         System.err.println("*** EdCompTargetList.init : autoGroupChanged=" + autoGroupChanged);
 
         final ISPObsComponent node = getContextTargetObsComp();
@@ -316,12 +341,20 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, primaryButtonUpdater);
         obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, guidingPanelUpdater);
 
+        // Note that in TPE, when this is issued, the selection does not seems to change in the table.
         final TargetEnvironment env = obsComp.getTargetEnvironment();
 
-        // TODO: Why are we setting twice?
-        setSelectionToTarget(env.getBase());
-        final SPTarget selTarget = TargetSelection.getTargetForNode(env, node).getOrNull();
-        manageCurPosIfEnvContainsTarget(selTarget, () -> setSelectionToTarget(selTarget));
+        // Set the selection, or base as default.
+        final boolean targetSet = TargetSelection.getTargetForNode(env,node).map(t ->
+                manageCurPosIfEnvContainsTarget(t, () -> setSelectionToTarget(t))
+        ).getOrElse(false);
+        final boolean groupSet = TargetSelection.getIndexedGuideGroupForNode(env, node).map(igg -> {
+            setSelectionToGroup(igg);
+            return true;
+        }).getOrElse(false);
+        if (!(targetSet || groupSet)) {
+            setSelectionToTarget(env.getBase());
+        }
 
         final SPInstObsComp inst = getContextInstrumentDataObject();
         _w.newMenu.removeAll();
@@ -344,7 +377,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
             }
 
             _w.newMenu.add(new JMenuItem("User") {{
-                addActionListener(new AddUserTargetAction(obsComp));
+                addActionListener(new AddUserTargetAction(obsComp, _w.positionTable));
             }});
 
             if (inst.hasGuideProbes()) {
@@ -354,7 +387,9 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
                 }});
             }
         }
-        _w.positionTable.reinit(obsComp);
+
+        _w.positionTable.reinit(obsComp, autoGroupChanged);
+
         _w.guidingControls.manualGuideStarButton().peer().setVisible(GuideStarSupport.supportsManualGuideStarSelection(getNode()));
         updateGuiding();
         _agsPub.watch(ImOption.apply(getContextObservation()));
@@ -467,20 +502,26 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
     /**
      * Listeners and watchers.
      */
+    private static abstract class AddAction implements ActionListener {
+        protected final TargetObsComp obsComp;
+        protected final TelescopePosTableWidget positionTable;
+
+        AddAction(final TargetObsComp obsComp, final TelescopePosTableWidget positionTable) {
+            this.obsComp = obsComp;
+            this.positionTable = positionTable;
+        }
+    }
 
     /**
      * Action that handles adding a new guide star when a probe is picked from the add menu.
      * This should ONLY be permitted if a current non-auto group is selected.
      */
-    private class AddGuideStarAction implements ActionListener {
-        private final TargetObsComp obsComp;
+    private final class AddGuideStarAction extends AddAction {
         private final GuideProbe probe;
-        private final TelescopePosTableWidget positionTable;
 
         AddGuideStarAction(final TargetObsComp obsComp, final GuideProbe probe, final TelescopePosTableWidget positionTable) {
-            this.obsComp = obsComp;
+            super(obsComp, positionTable);
             this.probe = probe;
-            this.positionTable = positionTable;
         }
 
         @Override public void actionPerformed(final ActionEvent actionEvent) {
@@ -502,6 +543,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
 
             obsComp.setTargetEnvironment(env.setGuideEnvironment(
                     env.getGuideEnvironment().putGuideProbeTargets(groupIndex, targets)));
+            positionTable.selectTarget(target);
 
             // XXX OT-35 hack to work around recursive call to TargetObsComp.setTargetEnvironment() in
             // SPProgData.ObsContextManager.update()
@@ -509,27 +551,23 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         }
     }
 
-    private static class AddUserTargetAction implements ActionListener {
-        private final TargetObsComp obsComp;
-
-        AddUserTargetAction(final TargetObsComp obsComp) {
-            this.obsComp = obsComp;
+    private static class AddUserTargetAction extends AddAction {
+        AddUserTargetAction(final TargetObsComp obsComp, final TelescopePosTableWidget positionTable) {
+            super(obsComp, positionTable);
         }
 
         @Override public void actionPerformed(final ActionEvent actionEvent) {
             final TargetEnvironment env = obsComp.getTargetEnvironment();
-            final TargetEnvironment newEnv = env.setUserTargets(env.getUserTargets().append(new SPTarget()));
+            final SPTarget target = new SPTarget();
+            final TargetEnvironment newEnv = env.setUserTargets(env.getUserTargets().append(target));
             obsComp.setTargetEnvironment(newEnv);
+            positionTable.selectTarget(target);
         }
     }
 
-    private static class AddGroupAction implements ActionListener {
-        private final TargetObsComp obsComp;
-        private final TelescopePosTableWidget positionTable;
-
+    private static class AddGroupAction extends AddAction {
         AddGroupAction(final TargetObsComp obsComp, final TelescopePosTableWidget positionTable) {
-            this.obsComp = obsComp;
-            this.positionTable = positionTable;
+            super(obsComp, positionTable);
         }
 
         @Override public void actionPerformed(final ActionEvent actionEvent) {

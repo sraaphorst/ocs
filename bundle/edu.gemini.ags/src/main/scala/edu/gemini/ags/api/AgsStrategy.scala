@@ -100,13 +100,13 @@ object AgsStrategy {
       // SPTargets are compared by references, so we extract the names and compare.
       def extractNames(auto: AutomaticGroup) = auto.targetMap.map(_.getName)
 
-      //if (extractNames(oldGuideEnv.auto) =/= extractNames(newAuto)) {
-      val newGuideEnv = oldGuideEnv.copy(auto = newAuto)
-      val newGuideEnvironment = oldGuideEnvironment.copy(guideEnv = newGuideEnv)
-      env.setGuideEnvironment(newGuideEnvironment)
-      //} else {
-      //        env
-      //      }
+      if (extractNames(oldGuideEnv.auto) =/= extractNames(newAuto)) {
+        val newGuideEnv = oldGuideEnv.copy(auto = newAuto)
+        val newGuideEnvironment = oldGuideEnvironment.copy(guideEnv = newGuideEnv)
+        env.setGuideEnvironment(newGuideEnvironment)
+      } else {
+        env
+      }
     }
   }
 }
