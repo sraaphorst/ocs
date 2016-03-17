@@ -52,7 +52,7 @@ final class BagsManager(executorService: ExecutorService) {
   }
   @volatile private var state: BagsState = BagsState(Set.empty, Set.empty)
 
-  // Setup an LRU cach with max entries BagsManager.CacheSize
+  // Setup an LRU cache with max entries BagsManager.CacheSize
   private val hashes = new util.LinkedHashMap[SPNodeKey, Int](math.ceil((BagsManager.CacheSize + 1) * 1.334).toInt, 0.75f, true) {
     override def removeEldestEntry(e: java.util.Map.Entry[SPNodeKey, Int]): Boolean =
       size > BagsManager.CacheSize
@@ -100,12 +100,11 @@ final class BagsManager(executorService: ExecutorService) {
     * a delay of at least `delay` milliseconds.
     */
   def enqueue(observation: ISPObservation, delay: Long): Unit = {
+    // Performs checks to rule out disabled guide groups, instruments like GPI, etc.
     def isEligibleForBags(ctx: ObsContext): Boolean = {
-      // TODO: There should also be checks for observed, to rule out GPI, etc. here.
       val enabledGroup = ctx.getTargets.getGuideEnvironment.guideEnv.auto match {
-        case AutomaticGroup.Initial   => true
-        case AutomaticGroup.Active(_) => true
-        case _                        => false
+        case AutomaticGroup.Initial | AutomaticGroup.Active(_,_) => true
+        case _                                                   => false
       }
       enabledGroup && (ctx.getInstrument.getType != SPComponentType.INSTRUMENT_GPI)
     }
@@ -243,19 +242,18 @@ object BagsManager {
       ctx.targets.dataObject.foreach { targetComp =>
         val newEnv = sel.applyTo(oldEnv)
         // If the env reference hasn't changed, this does nothing.
-        targetComp.setTargetEnvironment(newEnv)
-        ctx.targets.commit()
-      }
+        if (oldEnv != newEnv) {
+          targetComp.setTargetEnvironment(newEnv)
+          ctx.targets.commit()
 
-      // See if the pos angle has changed and set it.
-      // TODO: This doesn't seem right. The pos angle should only be set if the group is active?
-      // TODO: Are pos angles a guide group property?
-      ctx.instrument.dataObject.foreach { inst =>
-        val deg = sel.posAngle.toDegrees
-        val old = inst.getPosAngleDegrees
-        if (deg != old) {
-          inst.setPosAngleDegrees(deg)
-          ctx.instrument.commit()
+          ctx.instrument.dataObject.foreach { inst =>
+            val deg = sel.posAngle.toDegrees
+            val old = inst.getPosAngleDegrees
+            if (deg != old) {
+              inst.setPosAngleDegrees(deg)
+              ctx.instrument.commit()
+            }
+          }
         }
       }
     }
