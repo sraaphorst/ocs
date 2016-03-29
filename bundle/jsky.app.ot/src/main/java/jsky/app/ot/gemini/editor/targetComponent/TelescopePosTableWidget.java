@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 /**
  * An extension of the TableWidget to support telescope target lists.
  */
-public final class TelescopePosTableWidget extends JTable implements TelescopePosWatcher {
+final class TelescopePosTableWidget extends JTable implements TelescopePosWatcher {
     private static final Icon errorIcon = Resources.getIcon("eclipse/error.gif");
 
     // Used to format values as strings.
@@ -236,6 +236,7 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             @Override public List<Row> children()              { return children; }
             @Override public boolean editable()                { return editable; }
             @Override public boolean movable()                 { return false; }
+            public boolean isAutoGroup()                       { return group.exists(igg -> igg.group().isAutomatic()); }
         }
 
         // Collection of rows, which may include "subrows".
@@ -278,13 +279,21 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             this.env       = env;
             bands          = getSortedBands(env);
             columnHeaders  = computeColumnHeaders(bands);
+            rows           = DefaultImList.create(createRows(ctx));
+            numRows        = countRows();
+        }
 
-            final List<Row> rowList = createRows(ctx);
-            rows                    = DefaultImList.create(rowList);
-            numRows                 = countRows();
+        TableData(final TargetEnvironment env, final List<Row> rowList) {
+            this.env       = env;
+            bands          = getSortedBands(env);
+            columnHeaders  = computeColumnHeaders(bands);
+            rows           = DefaultImList.create(rowList);
+            numRows        = countRows();
+
         }
 
         // Create rows for all the guide groups and targets, and keep track of the number of rows created.
+        // TODO: Refactor this with replaceAutoGroup method.
         private List<Row> createRows(final Option<ObsContext> ctx) {
             final List<Row> tmpRows = new ArrayList<>();
 
@@ -341,6 +350,54 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             return tmpRows;
         }
 
+        // Replace the auto group and return a new TableData.
+        TableData replaceAutoGroup(final Option<ObsContext> ctx, final Option<GuideGroup> autoGroupOpt) {
+            final SPTarget base = env.getBase();
+            final Option<Long> when = ctx.flatMap(ObsContext::getSchedulingBlockStart);
+            final Option<Coordinates> baseCoords = getCoordinates(base, when);
+
+            // Get the group row representing the auto group, if one exists.
+            final Option<Integer> autoGroupIdx = rows.find(r -> r.group().exists(igg -> igg.group().isAutomatic())).map(rows::indexOf);
+            final boolean isPrimaryGroup = autoGroupIdx.exists(idx -> env.getGuideEnvironment().getPrimaryIndex().equals(idx));
+
+            // Create the group row.
+            final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = ctx.map(oc -> new Pair<>(oc, OT.getMagnitudeTable()));
+            final List<Row> rowList        = new ArrayList<>();
+
+            // Process the guide probe targets for this group.
+            final Option<Row> autoGroupRowOpt = autoGroupOpt.map(autoGroup -> {
+                autoGroup.getAll().foreach(gpt -> {
+                    final GuideProbe guideProbe = gpt.getGuider();
+                    final boolean isActive = ctx.exists(c -> GuideProbeUtil.instance.isAvailable(c, guideProbe));
+                    final Option<SPTarget> primary = gpt.getPrimary();
+
+                    // Add all the targets.
+                    gpt.getTargets().zipWithIndex().foreach(tup -> {
+                        final SPTarget target = tup._1();
+                        final int index = tup._2() + 1;
+
+                        final Option<AgsGuideQuality> quality = guideQuality(ags, guideProbe, target);
+                        final boolean enabled  = isPrimaryGroup && primary.exists(target::equals);
+
+                        final Row row = new GuideTargetRow(isActive, quality, enabled, false, false,
+                                guideProbe, index, target, baseCoords, when);
+                        rowList.add(row);
+                    });
+                });
+                return new GroupRow(isPrimaryGroup, false, 0, autoGroup, rowList);
+            });
+
+
+            // Now replace the auto group row.
+            final ArrayList<Row> newRows = new ArrayList<>(rows.toList());
+            if (autoGroupIdx.isDefined()) {
+                final int idx = autoGroupIdx.getValue();
+                newRows.remove(idx);
+            }
+            autoGroupRowOpt.foreach(row -> newRows.add(1, row));
+            return new TableData(env, newRows);
+        }
+
         // Pre-compute the number of rows as this will be frequently used.
         private int countRows() {
             return rows.foldLeft(0, (numRows, row) -> numRows + row.children().size() + 1);
@@ -362,7 +419,7 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
         /**
          * Conversions between SPTarget and row index.
          */
-        public Option<Integer> rowIndexForTarget(final SPTarget target) {
+        Option<Integer> rowIndexForTarget(final SPTarget target) {
             if (target == null) return None.instance();
 
             int index = 0;
@@ -378,14 +435,14 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             return None.instance();
         }
 
-        public Option<SPTarget> targetAtRowIndex(final int index) {
+        Option<SPTarget> targetAtRowIndex(final int index) {
             return rowAtRowIndex(index).flatMap(Row::target);
         }
 
         /**
          * Conversions between group index (index of group in list of groups) and row index.
          */
-        public Option<Integer> rowIndexForGroupIndex(final int gpIdx) {
+        Option<Integer> rowIndexForGroupIndex(final int gpIdx) {
             final ImList<GuideGroup> groups = env.getGroups();
             if (gpIdx < 0 || gpIdx >= groups.size()) return None.instance();
 
@@ -398,14 +455,14 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             return None.instance();
         }
 
-        public Option<IndexedGuideGroup> groupAtRowIndex(final int index) {
+        Option<IndexedGuideGroup> groupAtRowIndex(final int index) {
             return rowAtRowIndex(index).flatMap(Row::group);
         }
 
         /**
          * Get the Row object for a given index.
          */
-        public Option<Row> rowAtRowIndex(final int index) {
+        Option<Row> rowAtRowIndex(final int index) {
             if (index >= 0) {
                 int i = 0;
                 for (final Row row : rows) {
@@ -487,7 +544,7 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
     /**
      * Default constructor.
      */
-    public TelescopePosTableWidget(final EdCompTargetList owner) {
+    TelescopePosTableWidget(final EdCompTargetList owner) {
         this.owner = owner;
         setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         setModel(new TableData());
@@ -579,12 +636,13 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
         }
     }
 
-    // Auxiliary method to extract the size of the automatic group from a TargetObsComp.
-    private static int autoGroupSize(final TargetObsComp toc) {
-        return ImOption.apply(toc).map(TargetObsComp::getTargetEnvironment)
-                .flatMap(env -> env.getGroups().headOption().filter(GuideGroup::isAutomatic)
-                .map(gg -> gg.getTargets().size())).getOrElse(0);
-    }
+    // TODO: Remove!
+//    // Auxiliary method to extract the size of the automatic group from a TargetObsComp.
+//    private static int autoGroupSize(final TargetObsComp toc) {
+//        return ImOption.apply(toc).map(TargetObsComp::getTargetEnvironment)
+//                .flatMap(env -> env.getGroups().headOption().filter(GuideGroup::isAutomatic)
+//                .map(gg -> gg.getTargets().size())).getOrElse(0);
+//    }
 
     /**
      * Reinitialize the table.
@@ -602,41 +660,59 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
         stopWatchingSelection();
         stopWatchingEnv();
 
-        final TargetObsComp oldTOC = _dataObject;
+        final TargetEnvironment newEnv;
 
-        // Determine what, if anything, is selected.
-        final Option<Integer> selIndex = ImOption.apply(oldTOC).flatMap(toc -> {
-            final TargetEnvironment oldEnv         = oldTOC.getTargetEnvironment();
-            return ImOption.apply(_tableData).flatMap(td -> {
-                final Option<SPTarget> tpOpt           = TargetSelection.getTargetForNode(oldEnv, _obsComp);
-                final Option<Integer> tpIndex          = tpOpt.flatMap(_tableData::rowIndexForTarget);
-                final Option<IndexedGuideGroup> iggOpt = TargetSelection.getIndexedGuideGroupForNode(oldEnv, _obsComp);
-                final Option<Integer> iggIndex         = iggOpt.map(IndexedGuideGroup::index).flatMap(_tableData::rowIndexForGroupIndex);
-                return tpIndex.orElse(iggIndex);
-            });
-        });
-
-        // Reset the table.
-        _obsComp     = owner.getContextTargetObsComp();
-        _dataObject  = newTOC;
-        final TargetEnvironment newEnv = newTOC.getTargetEnvironment();
-        _resetTable(_dataObject.getTargetEnvironment());
-
-        // Now we need to reset the selection if possible.
-        // We have to take into account whether the auto group has changed and how.
-        final int rowAdjustment = autoGroupChanged ? (autoGroupSize(newTOC) - autoGroupSize(oldTOC)) : 0;
-
-        // Set the selection accordingly.
-        if (selIndex.isDefined()) {
-            selIndex.foreach(idx -> _setSelectedRow(idx + rowAdjustment));
+        // If only the auto group has changed, we simply update the table model instead of rebuilding the whole
+        // thing, and keep as much of the target environment as we can.
+        if (autoGroupChanged) {
+            final Option<GuideGroup> autoGroup = newTOC.getTargetEnvironment().getGroups().find(GuideGroup::isAutomatic);
+            newEnv = autoGroup.map(a -> {
+                        final GuideEnvironment oldGuideEnv = _env.getGuideEnvironment();
+                        final ImList<GuideGroup> newGroups = oldGuideEnv.getOptions().filter(GuideGroup::isManual).cons(a);
+                        final GuideEnvironment newGuideEnv = oldGuideEnv.setOptions(newGroups);
+                        return _env.setGuideEnvironment(newGuideEnv);
+                    }).getOrElse(_env);
+            _dataObject.setTargetEnvironment(newEnv);
+            _setAutoGroup(newEnv);
         } else {
-            selectBasePos();
+            final TargetObsComp oldTOC = _dataObject;
+
+            // Determine what, if anything, is selected.
+            final Option<Integer> selIndex = ImOption.apply(oldTOC).flatMap(toc -> {
+                final TargetEnvironment oldEnv = oldTOC.getTargetEnvironment();
+                return ImOption.apply(_tableData).flatMap(td -> {
+                    final Option<SPTarget> tpOpt = TargetSelection.getTargetForNode(oldEnv, _obsComp);
+                    final Option<Integer> tpIndex = tpOpt.flatMap(_tableData::rowIndexForTarget);
+                    final Option<IndexedGuideGroup> iggOpt = TargetSelection.getIndexedGuideGroupForNode(oldEnv, _obsComp);
+                    final Option<Integer> iggIndex = iggOpt.map(IndexedGuideGroup::index).flatMap(_tableData::rowIndexForGroupIndex);
+                    return tpIndex.orElse(iggIndex);
+                });
+            });
+
+            // Reset the table.
+            _obsComp = owner.getContextTargetObsComp();
+            _dataObject = newTOC;
+            newEnv = newTOC.getTargetEnvironment();
+            _resetTable(_dataObject.getTargetEnvironment());
+
+            // Now we need to reset the selection if possible.
+            // We have to take into account whether the auto group has changed and how.
+            // TODO: REMOVE THIS.
+            //final int rowAdjustment = autoGroupChanged ? (autoGroupSize(newTOC) - autoGroupSize(oldTOC)) : 0;
+
+            // Set the selection accordingly.
+            if (selIndex.isDefined()) {
+                selIndex.foreach(this::_setSelectedRow); //(idx -> _setSelectedRow(idx) + rowAdjustment));
+            } else {
+                selectBasePos();
+            }
         }
 
         // Now we can restart watching the changes as the env has been set and the selection made.
         startWatchingEnv();
         startWatchingSelection();
         newEnv.getTargets().foreach(t -> t.addWatcher(TelescopePosTableWidget.this));
+        newEnv.getTargets().foreach(t -> System.out.println("Registering " + t));
 
         final boolean editable = OTOptions.isEditable(owner.getProgram(), owner.getContextObservation());
         dragSource.setEditable(editable);
@@ -745,6 +821,49 @@ public final class TelescopePosTableWidget extends JTable implements TelescopePo
             }
         }
     };
+
+    // Just update the BAGS group instead of resetting the entire table.
+    private void _setAutoGroup(final TargetEnvironment env) {
+        final TargetEnvironment oldEnv = _env;
+        _env = env;
+        final Option<ObsContext> ctx = ObsContext.create(owner.getContextObservation()).map(c -> c.withTargets(env));
+
+        // We need to track what changed to fire events.
+        final TableData oldData = _tableData;
+        final Option<GuideGroup> oldAutoGroupOpt = oldEnv.getGuideEnvironment().getOptions().find(GuideGroup::isAutomatic);
+        final Option<Integer> oldAutoGroupIdxOpt = oldData.rows.find(row -> row.group().exists(g -> g.group().isAutomatic())).map(oldData.rows::indexOf);
+        final Option<GuideGroup> newAutoGroupOpt = env.getGuideEnvironment().getOptions().find(GuideGroup::isAutomatic);
+
+        _tableData = _tableData.replaceAutoGroup(ctx, newAutoGroupOpt);
+        _ignoreSelection = true;
+        try {
+            setModel(_tableData);
+        } finally {
+            _ignoreSelection = false;
+        }
+        TableUtil.initColumnSizes(this);
+
+        final Option<Integer> newAutoGroupIdxOpt = _tableData.rows.find(row -> row.group().exists(g -> g.group().isAutomatic())).map(_tableData.rows::indexOf);
+
+        // Fire events indicating what changed. The cases are as follows:
+        // 1. We went from no auto group to an auto group.
+        // 2. We went from an auto group to no auto group.
+        // 3. The existing auto group changed (sizes could be different).
+        if (oldAutoGroupOpt.isEmpty() && newAutoGroupOpt.isDefined()) {
+            _tableData.fireTableRowsInserted(1, _tableData.rows.get(newAutoGroupIdxOpt.getValue()).children().size()+2);
+        } else if (oldAutoGroupOpt.isDefined() && newAutoGroupOpt.isEmpty()) {
+            _tableData.fireTableRowsDeleted(1, oldData.rows.get(oldAutoGroupIdxOpt.getValue()).children().size()+2);
+        } else if (oldAutoGroupOpt.isDefined() && newAutoGroupOpt.isDefined()) {
+            final int oldLastIdx = oldData.rows.get(oldAutoGroupIdxOpt.getValue()).children().size()+2;
+            // TODO: newAutoGroupIdxOpt.getValue() is -1?
+            final int newLastIdx = _tableData.rows.get(newAutoGroupIdxOpt.getValue()).children().size()+2;
+            _tableData.fireTableRowsUpdated(1, Math.min(oldLastIdx, newLastIdx));
+            if (oldLastIdx < newLastIdx)
+                _tableData.fireTableRowsInserted(oldLastIdx+1, newLastIdx);
+            else if (newLastIdx < oldLastIdx)
+                _tableData.fireTableRowsDeleted(newLastIdx+1, oldLastIdx);
+        }
+    }
 
     private void _resetTable(final TargetEnvironment env) {
         _env = env;

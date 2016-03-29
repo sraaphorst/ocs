@@ -5,7 +5,8 @@ import scalaz._, Scalaz._
 /** 
  * Algebraic type for targets of observation. 
  */
-sealed trait Target extends Product with Serializable {
+sealed trait
+Target extends Product with Serializable {
 
   /** A human-readable name for this Target. */
   def name: String

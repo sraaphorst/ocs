@@ -50,7 +50,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
     private ImEither<SPTarget, IndexedGuideGroup> _curSelection;
 
     // A collection of the JMenuItems that allow the addition of guide stars.
-    final Map<GuideProbe,Component> _guideStarAdders = new HashMap<>();
+    private final Map<GuideProbe,Component> _guideStarAdders = new HashMap<>();
 
 
     public EdCompTargetList() {
@@ -329,7 +329,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, primaryButtonUpdater);
         obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, guidingPanelUpdater);
 
-        // Note that in TPE, when this is issued, the selection does not seems to change in the table.
+        // Note that in TPE, when this is issued, the selection does not seem to change in the table.
         final TargetEnvironment env = obsComp.getTargetEnvironment();
 
         // Set the selection, or base as default.
@@ -695,7 +695,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
             } else {
                 return new Some<>(envOld.removeTarget(t));
             }
-            return None.<TargetEnvironment>instance();
+            return None.instance();
         }).orElse(() -> selectedGroup().flatMap(igg -> {
             // Handle guide groups.
             final GuideGroup primary = envOld.getOrCreatePrimaryGuideGroup();
