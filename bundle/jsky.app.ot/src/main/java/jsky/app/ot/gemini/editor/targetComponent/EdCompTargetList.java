@@ -318,30 +318,55 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         );
     }
 
-    @Override public void init(final ISPObsComponent oldNode, final TargetObsComp oldDataObject) {
-        final boolean autoGroupChanged = autoGroupChanged(oldNode, oldDataObject);
-        System.err.println("*** EdCompTargetList.init : autoGroupChanged=" + autoGroupChanged);
+    @Override public void init(final ISPObsComponent oldNode, final TargetObsComp oldTOC) {
+        final boolean autoGroupChanged = autoGroupChanged(oldNode, oldTOC);
+        final TargetObsComp newTOC = getDataObject();
+
+        // If only the auto group has changed, we do not want to use a completely reset target environment, as this
+        // will contain clones of all targets and thus will require the target detail editors to be reset to use these
+        // new clones: this is bad as it will reformat the RA and Dec fields and thus any modifications being made
+        // to them will be lost as they are repopulated and the caret moved to the end.
+        if (autoGroupChanged) {
+            // Determine if there was an auto group in the old env and what the primary index was.
+            final TargetEnvironment oldEnv = oldTOC.getTargetEnvironment();
+            final GuideEnvironment oldGuideEnv = oldEnv.getGuideEnvironment();
+
+            final int oldPrimaryIdx          = oldGuideEnv.getPrimaryIndex();
+            final boolean oldHasNonEmptyAuto = oldGuideEnv.getOptions().find(GuideGroup::isAutomatic)
+                    .map(gg -> !gg.getTargets().isEmpty()).getOrElse(false);
+
+            final Option<GuideGroup> autoGroup = newTOC.getTargetEnvironment().getGroups().find(GuideGroup::isAutomatic);
+
+            final TargetEnvironment newEnv = autoGroup.map(a -> {
+                final ImList<GuideGroup> newGroups = oldGuideEnv.getOptions().filter(GuideGroup::isManual).cons(a);
+                final int newPrimaryIdx = oldPrimaryIdx + (oldHasNonEmptyAuto ? 0 : 1);
+                final GuideEnvironment newGuideEnv = oldGuideEnv.setOptions(newGroups).setPrimaryIndex(newPrimaryIdx);
+                return oldEnv.setGuideEnvironment(newGuideEnv);
+            }).getOrElse(oldEnv);
+            newTOC.setTargetEnvironment(newEnv);
+        }
 
         final ISPObsComponent node = getContextTargetObsComp();
         TargetSelection.listenTo(node, selectionListener);
 
-        final TargetObsComp obsComp = getDataObject();
-        obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, primaryButtonUpdater);
-        obsComp.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, guidingPanelUpdater);
+        newTOC.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, primaryButtonUpdater);
+        newTOC.addPropertyChangeListener(TargetObsComp.TARGET_ENV_PROP, guidingPanelUpdater);
 
         // Note that in TPE, when this is issued, the selection does not seem to change in the table.
-        final TargetEnvironment env = obsComp.getTargetEnvironment();
+        final TargetEnvironment env = newTOC.getTargetEnvironment();
 
-        // Set the selection, or base as default.
-        final boolean targetSet = TargetSelection.getTargetForNode(env,node).map(t ->
-                manageCurPosIfEnvContainsTarget(t, () -> setSelectionToTarget(t))
-        ).getOrElse(false);
-        final boolean groupSet = TargetSelection.getIndexedGuideGroupForNode(env, node).map(igg -> {
-            setSelectionToGroup(igg);
-            return true;
-        }).getOrElse(false);
-        if (!(targetSet || groupSet)) {
-            setSelectionToTarget(env.getBase());
+        // If more than the auto group has changed, we need to maintain the selection, or default to the base.
+        if (!autoGroupChanged) {
+            final boolean targetSet = TargetSelection.getTargetForNode(env, node).map(t ->
+                    manageCurPosIfEnvContainsTarget(t, () -> setSelectionToTarget(t))
+            ).getOrElse(false);
+            final boolean groupSet = TargetSelection.getIndexedGuideGroupForNode(env, node).map(igg -> {
+                setSelectionToGroup(igg);
+                return true;
+            }).getOrElse(false);
+            if (!(targetSet || groupSet)) {
+                setSelectionToTarget(env.getBase());
+            }
         }
 
         final SPInstObsComp inst = getContextInstrumentDataObject();
@@ -357,26 +382,27 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
                 Collections.sort(guiders, GuideProbe.KeyComparator.instance);
                 guiders.forEach(probe -> {
                     final JMenuItem guideStarAdder = new JMenuItem(probe.getKey()) {{
-                        addActionListener(new AddGuideStarAction(obsComp, probe, _w.positionTable));
+                        addActionListener(new AddGuideStarAction(newTOC, probe, _w.positionTable));
                     }};
                     _w.newMenu.add(guideStarAdder);
                     _guideStarAdders.put(probe, guideStarAdder);
                 });
+                updateGuideStarAdders();
             }
 
             _w.newMenu.add(new JMenuItem("User") {{
-                addActionListener(new AddUserTargetAction(obsComp, _w.positionTable));
+                addActionListener(new AddUserTargetAction(newTOC, _w.positionTable));
             }});
 
             if (inst.hasGuideProbes()) {
                 _w.newMenu.addSeparator();
                 _w.newMenu.add(new JMenuItem("Guide Group") {{
-                    addActionListener(new AddGroupAction(obsComp, _w.positionTable));
+                    addActionListener(new AddGroupAction(newTOC, _w.positionTable));
                 }});
             }
         }
 
-        _w.positionTable.reinit(obsComp, autoGroupChanged);
+        _w.positionTable.reinit(newTOC, autoGroupChanged);
 
         _w.guidingControls.manualGuideStarButton().peer().setVisible(GuideStarSupport.supportsManualGuideStarSelection(getNode()));
         updateGuiding();

@@ -48,17 +48,13 @@ class CoordinateEditor extends TelescopePosEditor with ReentrancyHack {
   })
 
   def edit(ctx: GOption[ObsContext], target0: SPTarget, node: ISPNode): Unit = {
-    println(s"*** CoordinateEditor.edit: $target0")
     spt = target0
 
     nonreentrant {
-      println("\t*** nonreentrant code")
       val when = ctx.asScalaOpt.flatMap(_.getSchedulingBlockStart.asScalaOpt).asGeminiOpt //  :-\
       target.getRaString(when).asScalaOpt.foreach(ra.setText)
       target.getDecString(when).asScalaOpt.foreach(dec.setText)
-      println("\t--- nonreentrant code done")
     }
-    println("--- CoordinateEditor.edit done")
   }
 
   def target: ITarget =
