@@ -12,22 +12,22 @@ import edu.gemini.catalog.votable.{CatalogException, GenericError}
 import edu.gemini.pot.sp._
 import edu.gemini.spModel.core.SPProgramID
 import edu.gemini.spModel.guide.GuideProbe
-import edu.gemini.spModel.obs.{SPObservation, ObservationStatus}
+import edu.gemini.spModel.obs.{ObservationStatus, SPObservation}
 import edu.gemini.spModel.obs.context.ObsContext
 import edu.gemini.spModel.rich.shared.immutable._
-import edu.gemini.spModel.target.env.AutomaticGroup
+import edu.gemini.spModel.target.env.{AutomaticGroup, GuideEnv, GuideEnvironment, GuideGrp}
 import jsky.app.ot.OT
 import jsky.app.ot.gemini.altair.Altair_WFS_Feature
 import jsky.app.ot.gemini.inst.OIWFS_Feature
 import jsky.app.ot.gemini.tpe.TpePWFSFeature
-import jsky.app.ot.tpe.{TpeManager, TpeContext}
+import jsky.app.ot.tpe.{TpeContext, TpeManager}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.swing.Swing
-import scala.util.{Success, Failure}
-
-import scalaz._, Scalaz._
+import scala.util.{Failure, Success}
+import scalaz._
+import Scalaz._
 
 
 final class BagsManager(executorService: ExecutorService) {
@@ -234,27 +234,23 @@ object BagsManager {
       }
     }
 
-  private def applySelection(ctx: TpeContext, selOpt: Option[AgsStrategy.Selection]): Unit =
-    selOpt.foreach { sel =>
-      val oldEnv = ctx.targets.envOrDefault
+  private def applySelection(ctx: TpeContext, selOpt: Option[AgsStrategy.Selection]): Unit = {
+    val oldEnv = ctx.targets.envOrDefault
 
-      // Calculate the new target environment and if they are different, apply them.
-      ctx.targets.dataObject.foreach { targetComp =>
-        val newEnv = sel.applyTo(oldEnv)
-        // If the env reference hasn't changed, this does nothing.
-        if (oldEnv != newEnv) {
-          targetComp.setTargetEnvironment(newEnv)
-          ctx.targets.commit()
+    // If AGS results were found, apply them to the target env; otherwise, clear out any existing auto group.
+    val newEnv = selOpt.map(_.applyTo(oldEnv)).getOrElse {
+      val oldGuideEnv = oldEnv.getGuideEnvironment.guideEnv
+      if (oldGuideEnv.auto === AutomaticGroup.Initial) oldEnv
+      else oldEnv.setGuideEnvironment(GuideEnvironment(GuideEnv(AutomaticGroup.Initial, oldGuideEnv.manual)))
+    }
 
-          ctx.instrument.dataObject.foreach { inst =>
-            val deg = sel.posAngle.toDegrees
-            val old = inst.getPosAngleDegrees
-            if (deg != old) {
-              inst.setPosAngleDegrees(deg)
-              ctx.instrument.commit()
-            }
-          }
-        }
+    // Calculate the new target environment and if they are different, apply them.
+    ctx.targets.dataObject.foreach { targetComp =>
+      // If the env reference hasn't changed, this does nothing.
+      if (oldEnv != newEnv) {
+        targetComp.setTargetEnvironment(newEnv)
+        ctx.targets.commit()
       }
     }
+  }
 }
