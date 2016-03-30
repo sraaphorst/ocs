@@ -52,6 +52,9 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
 
 
     static class TableData extends AbstractTableModel {
+        // The position of the auto group amongst the rows is fixed to 1 (immediately after the base).
+        private final int AUTO_GROUP_IDX = 1;
+
         enum Col {
             TAG("Type Tag") {
                 public String getValue(final Row row) { return row.tag(); }
@@ -350,50 +353,46 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
         }
 
         // Replace the auto group and return a new TableData.
-        TableData replaceAutoGroup(final Option<ObsContext> ctx, final Option<GuideGroup> autoGroupOpt) {
+        // Note that we work under the assumption that there is ALWAYS an auto group, which should be the case,
+        // and that it is in row position 1 of the table (directly after the base).
+        TableData replaceAutoGroup(final Option<ObsContext> ctx, final GuideGroup autoGroup) {
             final SPTarget base = env.getBase();
             final Option<Long> when = ctx.flatMap(ObsContext::getSchedulingBlockStart);
             final Option<Coordinates> baseCoords = getCoordinates(base, when);
 
-            // Get the group row representing the auto group, if one exists.
-            final Option<Integer> autoGroupIdx = rows.find(r -> r.group().exists(igg -> igg.group().isAutomatic())).map(rows::indexOf);
-
             // Create the new group row.
-            final Option<Row> autoGroupRowOpt = autoGroupOpt.map(autoGroup -> {
-                final boolean isPrimaryGroup = autoGroupIdx.exists(idx -> rows.get(idx).enabled());
-                final List<Row> rowList        = new ArrayList<>();
-                final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = ctx.map(oc -> new Pair<>(oc, OT.getMagnitudeTable()));
+            final boolean isPrimaryGroup = rows.get(AUTO_GROUP_IDX).enabled();
+            final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = ctx.map(oc -> new Pair<>(oc, OT.getMagnitudeTable()));
+            final List<Row> rowList = new ArrayList<>();
 
-                // Process the guide probe targets for this group.
-                autoGroup.getAll().foreach(gpt -> {
-                    final GuideProbe guideProbe = gpt.getGuider();
-                    final boolean isActive = ctx.exists(c -> GuideProbeUtil.instance.isAvailable(c, guideProbe));
-                    final Option<SPTarget> primary = gpt.getPrimary();
+            // Process the guide probe targets for this group.
+            autoGroup.getAll().foreach(gpt -> {
+                final GuideProbe guideProbe = gpt.getGuider();
+                final boolean isActive = ctx.exists(c -> GuideProbeUtil.instance.isAvailable(c, guideProbe));
+                final Option<SPTarget> primary = gpt.getPrimary();
 
-                    // Add all the targets.
-                    gpt.getTargets().zipWithIndex().foreach(tup -> {
-                        final SPTarget target = tup._1();
-                        final int index = tup._2() + 1;
+                // Add all the targets.
+                // Index is used to generate target names, so start at 1.
+                gpt.getTargets().zipWithIndex().foreach(tup -> {
+                    final SPTarget target = tup._1();
+                    final int index = tup._2() + 1;
 
-                        final Option<AgsGuideQuality> quality = guideQuality(ags, guideProbe, target);
-                        final boolean enabled  = isPrimaryGroup && primary.exists(target::equals);
+                    final Option<AgsGuideQuality> quality = guideQuality(ags, guideProbe, target);
+                    final boolean enabled = isPrimaryGroup && primary.exists(target::equals);
 
-                        final Row row = new GuideTargetRow(isActive, quality, enabled, false, false,
-                                guideProbe, index, target, baseCoords, when);
-                        rowList.add(row);
-                    });
+                    final Row row = new GuideTargetRow(isActive, quality, enabled, false, false,
+                            guideProbe, index, target, baseCoords, when);
+                    rowList.add(row);
                 });
-                return new GroupRow(isPrimaryGroup, false, 0, autoGroup, rowList);
             });
 
+            // The auto group is always in group position 0.
+            final Row autoGroupRow = new GroupRow(isPrimaryGroup, false, 0, autoGroup, rowList);
 
-            // Now replace the auto group row.
+
+            // Now replace the auto group row, i.e. row 1.
             final ArrayList<Row> newRows = new ArrayList<>(rows.toList());
-            if (autoGroupIdx.isDefined()) {
-                final int idx = autoGroupIdx.getValue();
-                newRows.remove(idx);
-            }
-            autoGroupRowOpt.foreach(row -> newRows.add(1, row));
+            newRows.set(1, autoGroupRow);
             return new TableData(env, newRows);
         }
 
@@ -815,11 +814,10 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
 
         // We need to track what changed to fire events.
         final TableData oldData = _tableData;
-        final Option<GuideGroup> oldAutoGroupOpt = oldEnv.getGuideEnvironment().getOptions().find(GuideGroup::isAutomatic);
-        final Option<Integer> oldAutoGroupIdxOpt = oldData.rows.find(row -> row.group().exists(g -> g.group().isAutomatic())).map(oldData.rows::indexOf);
-        final Option<GuideGroup> newAutoGroupOpt = env.getGuideEnvironment().getOptions().find(GuideGroup::isAutomatic);
+        final GuideGroup oldAutoGroup = oldEnv.getGuideEnvironment().getOptions().head();
+        final GuideGroup newAutoGroup = env.getGuideEnvironment().getOptions().head();
 
-        _tableData = _tableData.replaceAutoGroup(ctx, newAutoGroupOpt);
+        _tableData = _tableData.replaceAutoGroup(ctx, newAutoGroup);
         _ignoreSelection = true;
         try {
             setModel(_tableData);
@@ -828,25 +826,14 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
         }
         TableUtil.initColumnSizes(this);
 
-        final Option<Integer> newAutoGroupIdxOpt = _tableData.rows.find(row -> row.group().exists(g -> g.group().isAutomatic())).map(_tableData.rows::indexOf);
-
-        // Fire events indicating what changed. The cases are as follows:
-        // 1. We went from no auto group to an auto group.
-        // 2. We went from an auto group to no auto group.
-        // 3. The existing auto group changed (sizes could be different).
-        if (oldAutoGroupOpt.isEmpty() && newAutoGroupOpt.isDefined()) {
-            _tableData.fireTableRowsInserted(1, _tableData.rows.get(newAutoGroupIdxOpt.getValue()).children().size()+2);
-        } else if (oldAutoGroupOpt.isDefined() && newAutoGroupOpt.isEmpty()) {
-            _tableData.fireTableRowsDeleted(1, oldData.rows.get(oldAutoGroupIdxOpt.getValue()).children().size()+2);
-        } else if (oldAutoGroupOpt.isDefined() && newAutoGroupOpt.isDefined()) {
-            final int oldLastIdx = oldData.rows.get(oldAutoGroupIdxOpt.getValue()).children().size()+2;
-            final int newLastIdx = _tableData.rows.get(newAutoGroupIdxOpt.getValue()).children().size()+2;
-            _tableData.fireTableRowsUpdated(1, Math.min(oldLastIdx, newLastIdx));
-            if (oldLastIdx < newLastIdx)
-                _tableData.fireTableRowsInserted(oldLastIdx+1, newLastIdx);
-            else if (newLastIdx < oldLastIdx)
-                _tableData.fireTableRowsDeleted(newLastIdx+1, oldLastIdx);
-        }
+        // Fire events indicating what changed. The auto group will always be at row position 1.
+        final int oldLastIdx = oldData.rows.get(1).children().size() + 2;
+        final int newLastIdx = _tableData.rows.get(1).children().size() + 2;
+        _tableData.fireTableRowsUpdated(1, Math.min(oldLastIdx, newLastIdx));
+        if (oldLastIdx < newLastIdx)
+            _tableData.fireTableRowsInserted(oldLastIdx + 1, newLastIdx);
+        else if (newLastIdx < oldLastIdx)
+            _tableData.fireTableRowsDeleted(newLastIdx + 1, oldLastIdx);
     }
 
     private void _resetTable(final TargetEnvironment env) {
