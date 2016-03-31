@@ -244,7 +244,7 @@ object BagsManager {
       else oldEnv.setGuideEnvironment(GuideEnvironment(GuideEnv(AutomaticGroup.Initial, oldGuideEnv.manual)))
     }
 
-    // Calculate the new target environment and if they are different, apply them.
+    // Calculate the new target environment and if they are different referentially, apply them.
     ctx.targets.dataObject.foreach { targetComp =>
       // If the env reference hasn't changed, this does nothing.
       if (oldEnv != newEnv) {
