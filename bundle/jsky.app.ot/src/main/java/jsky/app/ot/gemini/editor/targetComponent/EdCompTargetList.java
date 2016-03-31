@@ -19,7 +19,6 @@ import edu.gemini.spModel.target.system.ITarget;
 import jsky.app.ot.OTOptions;
 import jsky.app.ot.ags.*;
 import jsky.app.ot.editor.OtItemEditor;
-import jsky.app.ot.tpe.AgsClient;
 import jsky.app.ot.tpe.GuideStarSupport;
 import jsky.app.ot.tpe.TelescopePosEditor;
 import jsky.app.ot.tpe.TpeManager;
@@ -69,9 +68,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
         _w.duplicateButton.addActionListener(duplicateListener);
         _w.primaryButton  .addActionListener(primaryListener);
 
-        _w.guidingControls.autoGuideStarButton().peer().addActionListener(autoGuideStarListener);
         _w.guidingControls.manualGuideStarButton().peer().addActionListener(manualGuideStarListener);
-
         _w.guidingControls.autoGuideStarGuiderSelector().addSelectionListener(strategy ->
                 AgsStrategyUtil.setSelection(getContextObservation(), strategy)
         );
@@ -754,24 +751,6 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
             tpe.getImageWidget().manualGuideStarSearch();
         } catch (final Exception e) {
             DialogUtil.error(e);
-        }
-    };
-
-    @SuppressWarnings("FieldCanBeLocal")
-    private final ActionListener autoGuideStarListener = new ActionListener() {
-        @Override public void actionPerformed (final ActionEvent evt) {
-            try {
-                // TODO: For BAGS, we do not want to pop open the TPE.
-                if (GuideStarSupport.hasGemsComponent(getNode())) {
-                    final TelescopePosEditor tpe = TpeManager.open();
-                    tpe.reset(getNode());
-                    tpe.getImageWidget().autoGuideStarSearch();
-                } else {
-                    AgsClient.launch(getNode(), _w);
-                }
-            } catch (final Exception e) {
-                DialogUtil.error(e);
-            }
         }
     };
 
