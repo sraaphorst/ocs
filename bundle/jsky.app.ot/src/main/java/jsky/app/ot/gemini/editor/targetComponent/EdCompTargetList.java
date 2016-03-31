@@ -515,7 +515,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
      */
     private static abstract class AddAction implements ActionListener {
         protected final TargetObsComp obsComp;
-        protected final TelescopePosTableWidget positionTable;
+        final TelescopePosTableWidget positionTable;
 
         AddAction(final TargetObsComp obsComp, final TelescopePosTableWidget positionTable) {
             this.obsComp = obsComp;
@@ -848,7 +848,7 @@ public final class EdCompTargetList extends OtItemEditor<ISPObsComponent, Target
             private final ITarget           target;
             private final ImList<Magnitude> mag;
 
-            public TargetDetails(final SPTarget target) {
+            TargetDetails(final SPTarget target) {
                 this.target = target.getTarget().clone();
                 this.mag    = target.getMagnitudes();
             }
