@@ -24,19 +24,19 @@ final class TelescopePosTableDragDropObject implements Transferable {
     private TelescopePosTableWidget _currentOwner;
 
     // The item(s) being dragged.
-    private final TelescopePosTableWidget.TableData.Row _node;
+    private final TelescopePosTableWidget.TelescopePosTableModel.Row _node;
 
     /**
      * This constructor should be used when dragging an object that currently
      * exists in a tree.
      */
-    TelescopePosTableDragDropObject(final TelescopePosTableWidget.TableData.Row node, final TelescopePosTableWidget tree) {
+    TelescopePosTableDragDropObject(final TelescopePosTableWidget.TelescopePosTableModel.Row node, final TelescopePosTableWidget tree) {
         _node = Objects.requireNonNull(node);
         _currentOwner = tree;
     }
 
     /** Get the TelescopePosTableWidget.TableData.Row. */
-    TelescopePosTableWidget.TableData.Row getNode() {
+    TelescopePosTableWidget.TelescopePosTableModel.Row getNode() {
         return _node;
     }
 

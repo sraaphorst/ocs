@@ -6,15 +6,12 @@ import edu.gemini.shared.util.immutable.Some;
 import jsky.app.ot.util.DnDUtils;
 import jsky.util.gui.DialogUtil;
 
-import javax.swing.tree.TreePath;
 import java.awt.*;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.dnd.*;
 import java.io.IOException;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.IntStream;
 
 
 // Drag & Drop target for the position table.
@@ -177,13 +174,13 @@ class TelescopePosTableDropTarget implements DropTargetListener {
     // This method handles a drop for a list of files
     private boolean dropNodes(final int action, final Transferable transferable, final Point location)
             throws IOException, UnsupportedFlavorException {
-        final TelescopePosTableWidget.TableData.Row parent = table.getNode(location);
+        final TelescopePosTableWidget.TelescopePosTableModel.Row parent = table.getNode(location);
         if (parent == null)
             return false;
 
         final TelescopePosTableDragDropObject ddo = (TelescopePosTableDragDropObject) transferable.getTransferData(TelescopePosTableDragDropObject.DATA_FLAVOR);
         final TelescopePosTableWidget ownerTW = ddo.getOwner();
-        final TelescopePosTableWidget.TableData.Row item = ddo.getNode();
+        final TelescopePosTableWidget.TelescopePosTableModel.Row item = ddo.getNode();
 
         DnDUtils.debugPrintln((action == DnDConstants.ACTION_COPY ? "Copy" : "Move") +
                               " item " + ddo.getNode() + " to targetNode " + parent);
@@ -209,7 +206,7 @@ class TelescopePosTableDropTarget implements DropTargetListener {
         }
 
         // Get the node under the mouse.
-        final TelescopePosTableWidget.TableData.Row parent = table.getNode(dtde.getLocation());
+        final TelescopePosTableWidget.TelescopePosTableModel.Row parent = table.getNode(dtde.getLocation());
         if (parent == null) {
             return false;
         }
