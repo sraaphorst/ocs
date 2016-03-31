@@ -2,11 +2,13 @@ package jsky.app.ot.gemini.editor.targetComponent;
 
 import edu.gemini.ags.api.*;
 import edu.gemini.pot.ModelConverters;
+import edu.gemini.pot.ModelConverters$;
 import edu.gemini.pot.sp.ISPObsComponent;
 import edu.gemini.pot.sp.ISPObservation;
 import edu.gemini.shared.skyobject.Magnitude;
 import edu.gemini.shared.util.immutable.*;
 import edu.gemini.spModel.core.Angle;
+import edu.gemini.spModel.core.Angle$;
 import edu.gemini.spModel.core.Coordinates;
 import edu.gemini.spModel.guide.*;
 import edu.gemini.spModel.obs.context.ObsContext;
@@ -306,7 +308,6 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
             tmpRows.add(new BaseTargetRow(base, when));
 
             // Add all the guide groups and targets.
-            final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = ctx.map(oc -> new Pair<>(oc, OT.getMagnitudeTable()));
             final GuideEnvironment ge = env.getGuideEnvironment();
             final ImList<GuideGroup> groups = ge.getOptions();
 
@@ -314,6 +315,7 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
             groups.zipWithIndex().foreach(gtup -> {
                 final GuideGroup group = gtup._1();
                 final int groupIndex   = gtup._2();
+                final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = agsForGroup(ctx, group);
 
                 final boolean isPrimaryGroup = ge.getPrimaryIndex() == groupIndex;
                 final boolean editable         = group.isManual();
@@ -362,7 +364,7 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
 
             // Create the new group row.
             final boolean isPrimaryGroup = rows.get(AUTO_GROUP_IDX).enabled();
-            final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = ctx.map(oc -> new Pair<>(oc, OT.getMagnitudeTable()));
+            final Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> ags = agsForGroup(ctx, autoGroup);
             final List<Row> rowList = new ArrayList<>();
 
             // Process the guide probe targets for this group.
@@ -394,6 +396,18 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
             final ArrayList<Row> newRows = new ArrayList<>(rows.toList());
             newRows.set(1, autoGroupRow);
             return new TableData(env, newRows);
+        }
+
+        // Return an object used for guide star quality calculations, adjusted by pos angle for the group if one exists.
+        private static Option<Tuple2<ObsContext, AgsMagnitude.MagnitudeTable>> agsForGroup(final Option<ObsContext> ctx, final GuideGroup group) {
+            final Option<ObsContext> adjCtx;
+            final GuideGrp grp = group.grp();
+            if (grp instanceof AutomaticGroup.Active) {
+                 adjCtx = ctx.map(oc -> oc.withPositionAngle(edu.gemini.skycalc.Angle.degrees(((AutomaticGroup.Active) grp).posAngle().toDegrees())));
+            } else {
+                adjCtx = ctx;
+            }
+            return adjCtx.map(oc -> new Pair<>(oc, OT.getMagnitudeTable()));
         }
 
         // Pre-compute the number of rows as this will be frequently used.
@@ -633,14 +647,6 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
             _ignoreSelection = tmp;
         }
     }
-
-    // TODO: Remove!
-//    // Auxiliary method to extract the size of the automatic group from a TargetObsComp.
-//    private static int autoGroupSize(final TargetObsComp toc) {
-//        return ImOption.apply(toc).map(TargetObsComp::getTargetEnvironment)
-//                .flatMap(env -> env.getGroups().headOption().filter(GuideGroup::isAutomatic)
-//                .map(gg -> gg.getTargets().size())).getOrElse(0);
-//    }
 
     /**
      * Reinitialize the table.
@@ -898,6 +904,8 @@ final class TelescopePosTableWidget extends JTable implements TelescopePosWatche
                 if (oldPosAngle != newPosAngle) {
                     inst.setPosAngleDegrees(newPosAngle);
                     oc.setDataObject(inst);
+
+                    // We need to re-evaluate the guiding
                 }
             }
         }

@@ -15,7 +15,7 @@ import edu.gemini.spModel.guide.GuideProbe
 import edu.gemini.spModel.obs.{ObservationStatus, SPObservation}
 import edu.gemini.spModel.obs.context.ObsContext
 import edu.gemini.spModel.rich.shared.immutable._
-import edu.gemini.spModel.target.env.{AutomaticGroup, GuideEnv, GuideEnvironment, GuideGrp}
+import edu.gemini.spModel.target.env.{AutomaticGroup, GuideEnv, GuideEnvironment}
 import jsky.app.ot.OT
 import jsky.app.ot.gemini.altair.Altair_WFS_Feature
 import jsky.app.ot.gemini.inst.OIWFS_Feature
@@ -250,6 +250,20 @@ object BagsManager {
       if (oldEnv != newEnv) {
         targetComp.setTargetEnvironment(newEnv)
         ctx.targets.commit()
+
+        // Change the pos angle as appropriate if this is the auto group.
+        selOpt.foreach { sel =>
+          if (newEnv.getOrCreatePrimaryGuideGroup().isAutomatic && selOpt.isDefined) {
+            ctx.instrument.dataObject.foreach { inst =>
+              val deg = sel.posAngle.toDegrees
+              val old = inst.getPosAngleDegrees
+              if (deg != old) {
+                inst.setPosAngleDegrees(deg)
+                ctx.instrument.commit()
+              }
+            }
+          }
+        }
       }
     }
   }
