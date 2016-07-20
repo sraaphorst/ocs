@@ -204,7 +204,7 @@ object BagsFeedback {
     case ErrorState              => ErrorStateRow.some
     case PendingState(_,_)       => PendingStateRow.some
     case RunningState(_,_)       => RunningStateRow.some
-    case RunningEditedState(_,_) => RunningStateRow.some
+    case RunningEditedState(_)   => RunningStateRow.some
     case FailureState(_,why)     => FailureStateRow(why).some
     case IdleState(_,_) if ctx.exists(_.getTargets.getGuideEnvironment.guideEnv.auto === AutomaticGroup.Initial) => NoStarsRow.some
     case _                       => None
