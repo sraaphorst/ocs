@@ -158,15 +158,12 @@ object BagsState {
       (this, ioUnit)
 
     // Success, but now the observation has been edited so the AGS selection
-    // may not be valid.  Apply the results anyway in case the edit is not
-    // to a field that impacts AGS and go to pending to run again if necessary.
-    private[ags] override def succeed(results: Option[AgsStrategy.Selection]): StateTransition = {
-      val action = for {
-        _ <- BagsManager.applyAction(obs, results)
-        _ <- BagsManager.wakeUpAction(obs, 0)
-      } yield ()
-      (PendingState(obs, Some(hash)), action)
-    }
+    // may not be valid. We could apply the results in case the edits made to the
+    // observation do not change the AGS selection, but in the interests of safety
+    // and as this was causing issues for BAGS overwriting PA edits, we only allow
+    // BAGS to apply to unedited observations.
+    override def succeed(results: Option[AgsStrategy.Selection]): StateTransition =
+      (PendingState(obs, Some(hash)), BagsManager.wakeUpAction(obs, 0))
 
     // Failed AGS but we've been edited in the meantime anyway.  Go back to
     // PendingState so we can run again.  Here we pass in no AgsHash value to
@@ -491,6 +488,7 @@ object BagsManager {
 
     obs.getProgram.removeStructureChangeListener(StructureListener)
     obs.getProgram.removeCompositeChangeListener(ChangeListener)
+
     applySelection(TpeContext(obs))
 
     // Update the TPE if it is visible
