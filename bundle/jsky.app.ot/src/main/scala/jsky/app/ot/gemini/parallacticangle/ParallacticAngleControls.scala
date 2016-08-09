@@ -151,6 +151,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
    * The `Runnable` is a callback that will be invoked on the EDT after the target is updated.
    */
   def init(e: OtItemEditor[_, _], s: Option[Site], f: Format, c: Runnable): Unit = Swing.onEDT { //ME
+    println("+++ ParallacticAngleControls.init")
     editor    = Some(e)
     site      = s
     formatter = Some(f)
@@ -189,6 +190,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
       e      <- editor
       ispObs <- Option(e.getContextObservation)
     } {
+      println(s"+++ ParallacticAngleControls.updateSchedulingBlock")
       val spObs = ispObs.getDataObject.asInstanceOf[SPObservation]
       val sameNight = spObs.getSchedulingBlock.asScalaOpt.exists(_.sameObservingNightAs(sb))
 
@@ -311,6 +313,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
         if (isPaUi) dateTimeStr + durStr + paStr
         else dateTimeStr
 
+      // TODO: Make sure that this is called ONLY when specifically updated.
       publish(ParallacticAngleControls.ParallacticAngleChangedEvent)
     }
   }

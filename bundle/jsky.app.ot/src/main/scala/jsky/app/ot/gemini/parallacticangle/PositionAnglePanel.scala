@@ -57,7 +57,7 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
         Try { text.toDouble }.toOption
 
       override def validate(): Unit =
-        background = angle.fold(if (positionAngleConstraintComboBox.selection.item == PosAngleConstraint.UNBOUNDED) background else badBackground)(x => defaultBackground)
+        background = angle.fold(if (positionAngleConstraintComboBox.selection.item == PosAngleConstraint.UNBOUNDED) background else badBackground)(_ => defaultBackground)
     }
 
     layout(positionAngleTextField) = new Constraints() {
@@ -66,20 +66,22 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
       insets = new Insets(0, 0, 0, 5)
     }
 
-    // We want the parallactic angle controls to be notified every time the position angle changes.
-    // A warning icon will be displayed if the two values are not the same according to the chosen formatter.
+
     listenTo(positionAngleTextField)
     listenTo(positionAngleTextField.keys)
     reactions += {
       case ValueChanged(`positionAngleTextField`) =>
+        // We want the parallactic angle controls to be notified every time the position angle changes.
+        // A warning icon will be displayed if the two values are not the same according to the chosen formatter.
         ui.parallacticAngleControlsOpt.foreach(_.positionAngleChanged(positionAngleTextField.text))
         ui.positionAngleTextField.validate()
         copyPosAngleToInstrument()
 
-      case FocusGained(`positionAngleTextField`, _, _) | FocusLost(`positionAngleTextField`, _, _) =>
-        copyPosAngleToTextField()
-
-      case KeyPressed(`positionAngleTextField`, Key.Enter, _, _) =>
+      case FocusGained(`positionAngleTextField`, _, _) |
+           FocusLost(`positionAngleTextField`, _, _) |
+           KeyPressed(`positionAngleTextField`, Key.Enter, _, _) =>
+        // We only update the PA text field very specifically when the focus is gained or lost or enter is hit
+        // to prevent BAGS from changing the contents while editing.
         copyPosAngleToTextField()
     }
 
@@ -148,15 +150,11 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
         cardLayout.show(this.peer, positionAngleFeedbackPanel.cardId)
 
       // Convenience method to set the appropriate card.
-      def updatePanel(): Unit =
-        for {
-          e <- editor
-        } yield {
-          e.getDataObject.getPosAngleConstraint match {
-            case PosAngleConstraint.PARALLACTIC_ANGLE => showParallacticAngleControls()
-            case _                                    => showPositionAngleFeedback()
-          }
+      def updatePanel(): Unit = editor.foreach { _.getDataObject.getPosAngleConstraint match {
+          case PosAngleConstraint.PARALLACTIC_ANGLE => showParallacticAngleControls()
+          case _                                    => showPositionAngleFeedback()
         }
+      }
     }
 
     //controlsPanel.layout(positionAngleFeedback) = BorderPanel.Position.Center
@@ -170,7 +168,7 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
 
 
   /**
-   * Initialization of the components.
+   * Initialization of the components. Only called from the instrument editor initializers.
    */
   def init(e: E, s: Site): Unit = {
     editor = Some(e)
@@ -183,8 +181,6 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
     })
 
     // Reset the combo box so that all of the options are enabled by default.
-    // TODO: When background AGS is implemented, we can remove the deafTo + listenTo lines, as well as the
-    // disabling of the positionAngleTextField.
     deafTo(ui.positionAngleConstraintComboBox.selection)
 
     // TODO: Currently the UNBOUNDED PosAngleConstraint is disabled, so we remove it from any list of PACs.
@@ -195,7 +191,8 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
     ui.positionAngleConstraintComboBox.selection.item = instrument.getPosAngleConstraint
 
     // Ignore changes to the position angle text field if it is being edited, i.e. has the focus.
-    // This is to avoid BAGS changing the contents to +180 while editing is occurring.
+    // This is to avoid BAGS changing the (presumably intermediate) contents to +180 while editing is occurring,
+    // e.g. if user is entering 120 and at 12 BAGS looks up and changes to 12 + 180 = 192.
     if (!ui.positionAngleTextField.hasFocus) {
       copyPosAngleToTextField()
     }
@@ -211,7 +208,10 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
     updateUnboundedControls()
   }
 
-  /** Sets the enabled state of contained widgets to match the provided value. */
+  /**
+    * Sets the enabled state of contained widgets to match the provided value.
+    * Should only be called from instrument editor init methods.
+    */
   def updateEnabledState(enabled: Boolean): Unit = {
     ui.positionAngleConstraintComboBox.enabled = enabled
     ui.positionAngleTextField.enabled = enabled
@@ -221,12 +221,13 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
   }
 
   /**
-    * The actual copying of a given pos angle to the data object. This is done to avoid overwriting based
-    * on precision.
+    * The actual copying of a given pos angle to the data object.
+    * This is done explicitly to avoid overwriting based on minor differences in double precision and to avoid
+    * adding 180 to the position angle, which causes issues.
     */
   private def setInstPosAngle(newAngleDegrees: Double): Unit = editor.foreach { e =>
     val oldAngleDegrees = e.getDataObject.getPosAngle
-    if (Math.abs(oldAngleDegrees - newAngleDegrees) >= 0.005) {
+    if (Math.abs(oldAngleDegrees - newAngleDegrees) >= 0.005 && Math.abs(Math.abs(oldAngleDegrees - newAngleDegrees) - 180) >= 0.005) {
       println(s"+++ setInstPosAngle setting from $oldAngleDegrees to $newAngleDegrees")
       e.getDataObject.setPosAngle(newAngleDegrees)
       println(s"+++ now set to ${e.getDataObject.getPosAngle}")
@@ -251,10 +252,8 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
       val newAngleStr = numberFormatter.format(e.getDataObject.getPosAngleDegrees)
       val oldAngleStr = ui.positionAngleTextField.text
       if (!newAngleStr.equals(oldAngleStr)) {
-        // TODO: TURN OFF REACTION HERE
         deafTo(ui.positionAngleTextField)
         ui.positionAngleTextField.text = newAngleStr
-        // TODO: TURN ON REACTION HERE
         listenTo(ui.positionAngleTextField)
       }
     })
@@ -270,6 +269,7 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
       e <- editor
       p <- ui.parallacticAngleControlsOpt
     } {
+      println(s"+++ PositionAnglePanel.positionAngleConstraintChanged")
       val posAngleConstraint = ui.positionAngleConstraintComboBox.selection.item
 
       // Set the position angle constraint on the instrument.
@@ -284,7 +284,7 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
             p.resetComponents()
           // TODO: Remove this case when background AGS is implemented.
           case PosAngleConstraint.UNBOUNDED =>
-            ui.positionAngleTextField.text = "0"
+            ui.positionAngleTextField.text = ""
           // TODO: Stop removing here.
           case _ =>
         }
@@ -302,7 +302,10 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
       angle <- angleOpt
       e     <- editor
       pa    <- ui.parallacticAngleControlsOpt
-    } setInstPosAngle(angle.toDegrees.toPositive.getMagnitude)
+    } {
+      println(s"+++ PositionAnglePanle.parallacticAngleChanged")
+      setInstPosAngle(angle.toDegrees.toPositive.getMagnitude)
+    }
   }
 
 
@@ -328,7 +331,7 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
 
       // Now the parallactic angle is in use if it can be used and is selected.
       if (canUseAvgPar && instrument.getPosAngleConstraint.equals(PosAngleConstraint.PARALLACTIC_ANGLE))
-        ui.parallacticAngleControlsOpt.foreach(_.ui.relativeTimeMenu.rebuild())
+        p.ui.relativeTimeMenu.rebuild()
     }
   }
 
