@@ -16,7 +16,6 @@ import edu.gemini.spModel.obs.SchedulingBlock.Duration
 import edu.gemini.spModel.obs.SchedulingBlock.Duration._
 import edu.gemini.spModel.rich.shared.immutable._
 import edu.gemini.shared.util.immutable.{Option => JOption, ImOption}
-import jsky.app.ot.ags.BagsManager
 import jsky.app.ot.editor.OtItemEditor
 import jsky.app.ot.gemini.editor.EphemerisUpdater
 import jsky.app.ot.util.TimeZonePreference
@@ -151,7 +150,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
    * Initialize the UI and set the instrument editor to allow for the parallactic angle updates.
    * The `Runnable` is a callback that will be invoked on the EDT after the target is updated.
    */
-  def init(e: OtItemEditor[_, _], s: Option[Site], f: Format, c: Runnable): Unit = {
+  def init(e: OtItemEditor[_, _], s: Option[Site], f: Format, c: Runnable): Unit = Swing.onEDT { //ME
     editor    = Some(e)
     site      = s
     formatter = Some(f)
@@ -243,7 +242,8 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
    * Triggered when the date time button is clicked. Shows the ParallacticAngleDialog to allow the user to
    * explicitly set a date and duration for the parallactic angle calculation.
    */
-  private def displayParallacticAngleDialog(): Unit =
+  private def displayParallacticAngleDialog(): Unit = Swing.onEDT {
+    //ME
     for {
       e <- editor
       o <- Option(e.getContextObservation)
@@ -258,6 +258,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
       dialog.visible = true
       updateSchedulingBlock(dialog.schedulingBlock)
     }
+  }
 
 
   /**
@@ -265,7 +266,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
    * A warning icon is displayed if the two are different. This is a consequence of allowing the user to
    * set the PA to something other than the parallactic angle, even when it is selected.
    */
-  def positionAngleChanged(positionAngleText: String): Unit = {
+  def positionAngleChanged(positionAngleText: String): Unit = edt { //ME
     // We only do this if the parallactic angle can be calculated, and is different from the PA.
     for {
       e     <- editor
@@ -282,16 +283,15 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
   /**
    * This should be called whenever the parallactic angle components need to be reinitialized, and at initialization.
    */
-  def resetComponents(): Unit = {
+  def resetComponents(): Unit = edt { //ME
     ui.parallacticAngleFeedback.text = ""
     for {
-      e              <- editor
+      e <- editor
       ispObservation <- Option(e.getContextObservation)
-      spObservation  = ispObservation.getDataObject.asInstanceOf[SPObservation]
-      sb             <- spObservation.getSchedulingBlock.asScalaOpt
-      fmt            <- formatter
+      spObservation = ispObservation.getDataObject.asInstanceOf[SPObservation]
+      sb <- spObservation.getSchedulingBlock.asScalaOpt
+      fmt <- formatter
     } {
-
       // Scheduling block date and time
       val dateTimeStr = {
         val df = new SimpleDateFormat("MM/dd/yy HH:mm:ss z")
@@ -325,7 +325,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
       o <- Option(e.getContextObservation)
       a <- e.getDataObject match {
         case p: ParallacticAngleSupport => p.calculateParallacticAngle(o).asScalaOpt
-        case _                          => None
+        case _ => None
       }
     } yield a
 
@@ -341,6 +341,9 @@ object ParallacticAngleControls {
   val Log = Logger.getLogger(getClass.getName)
   case object ParallacticAngleChangedEvent extends Event
 
+  def edt[A](a: => Unit): IO[Unit] =
+    IO(Swing.onEDT(a))
+
   def angleToDegrees(a: Angle): Double = a.toPositive.toDegrees.getMagnitude
 
   /** Wrap an IO action with a logging timer. */
@@ -351,10 +354,6 @@ object ParallacticAngleControls {
       end   <- IO(System.currentTimeMillis())
       _     <- IO(ParallacticAngleControls.Log.info(s"$msg: ${end - start}ms"))
     } yield a
-
-  /** Construct an IO action that runs on the EDT. */
-  def edt[A](a: => Unit): IO[Unit] =
-    IO(Swing.onEDT(a))
 
   /** Some useful operations for ISPNodes. */
   implicit class ParallacticAngleControlsISPNodeOps(n: ISPNode) {

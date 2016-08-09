@@ -103,7 +103,10 @@ object BagsState {
       // Compute the new hash value of the observation, if possible.  It may
       // be possible to (re)run AGS but not necessary if the hash hasn't
       // changed.
+      tup.foreach { case (c,_) => println(s"+++ PA=${c.getPositionAngle}, constraint=${c.getPosAngleConstraint}") }
+      println(s"+++ PendingState old hash=$hash")
       val newHash = tup.map { case (ctx, _) => hashObs(ctx) }
+      println(s"+++ PendingState old hash=$newHash")
 
       // Here we figure out what the transition to the RunningState should be,
       // assuming we aren't already observed and that the hash differs.
@@ -455,20 +458,28 @@ object BagsManager {
     def applySelection(ctx: TpeContext): Unit = {
       val oldEnv = ctx.targets.envOrDefault
 
-      // If AGS results were found, apply them to the target env; otherwise, clear out any existing auto group.
+      // If AGS results were found, apply them to the target env; otherwise, clear out any existing auto group.)
+      println(s"+++ Processing AGS results...")
       val newEnv = selOpt.map(_.applyTo(oldEnv)).getOrElse {
         val oldGuideEnv = oldEnv.getGuideEnvironment.guideEnv
-        if (oldGuideEnv.auto === AutomaticGroup.Initial || oldGuideEnv.auto === AutomaticGroup.Disabled) oldEnv
-        else oldEnv.setGuideEnvironment(GuideEnvironment(GuideEnv(AutomaticGroup.Initial, oldGuideEnv.manual)))
+        if (oldGuideEnv.auto === AutomaticGroup.Initial || oldGuideEnv.auto === AutomaticGroup.Disabled) {
+          println(s"+++ Condition 1")
+          oldEnv
+        }
+        else {
+          println(s"+++ Condition 2")
+          oldEnv.setGuideEnvironment(GuideEnvironment(GuideEnv(AutomaticGroup.Initial, oldGuideEnv.manual)))
+        }
       }
 
       // Calculate the new target environment and if they are different referentially, apply them.
       ctx.targets.dataObject.foreach { targetComp =>
         // If the env reference hasn't changed, this does nothing.
         if (oldEnv != newEnv) {
+          println(s"+++ Env reference has changed")
           targetComp.setTargetEnvironment(newEnv)
           ctx.targets.commit()
-        }
+        } else println(s"+++ Env reference hasn't changed")
 
         // Change the pos angle as appropriate if this is the auto group.
         selOpt.foreach { sel =>
@@ -476,6 +487,7 @@ object BagsManager {
             ctx.instrument.dataObject.foreach { inst =>
               val deg = sel.posAngle.toDegrees
               val old = inst.getPosAngleDegrees
+              println(s"+++ New PA=$deg, Old PA=$old")
               if (deg != old) {
                 inst.setPosAngleDegrees(deg)
                 ctx.instrument.commit()

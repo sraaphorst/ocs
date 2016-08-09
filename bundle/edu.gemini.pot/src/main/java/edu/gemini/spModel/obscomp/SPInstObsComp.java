@@ -215,6 +215,7 @@ public abstract class SPInstObsComp extends AbstractDataObject {
         double oldValue = getPosAngleDegrees();
         if (oldValue != newValue) {
             newValue = Angle.normalizeDegrees(newValue);
+            System.out.println("+++ Inst.setPosAngleDegrees from " + oldValue + " to " + newValue);
             _positionAngle = newValue;
             firePropertyChange(InstConstants.POS_ANGLE_PROP, oldValue, newValue);
         }
