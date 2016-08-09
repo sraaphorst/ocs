@@ -224,10 +224,13 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
     * The actual copying of a given pos angle to the data object. This is done to avoid overwriting based
     * on precision.
     */
-  private def setInstPosAngle(angleDegrees: Double): Unit = editor.foreach { e =>
-    val inst = e.getContextInstrumentDataObject
-    if (Math.abs(inst.getPosAngleDegrees - angleDegrees) < 0.005)
-      e.getContextInstrumentDataObject.setPosAngle(angleDegrees)
+  private def setInstPosAngle(newAngleDegrees: Double): Unit = editor.foreach { e =>
+    val oldAngleDegrees = e.getDataObject.getPosAngle
+    if (Math.abs(oldAngleDegrees - newAngleDegrees) >= 0.005) {
+      println(s"+++ setInstPosAngle setting from $oldAngleDegrees to $newAngleDegrees")
+      e.getDataObject.setPosAngle(newAngleDegrees)
+      println(s"+++ now set to ${e.getDataObject.getPosAngle}")
+    }
   }
 
   /**
@@ -248,7 +251,11 @@ class PositionAnglePanel[I <: SPInstObsComp with PosAngleConstraintAware,
       val newAngleStr = numberFormatter.format(e.getDataObject.getPosAngleDegrees)
       val oldAngleStr = ui.positionAngleTextField.text
       if (!newAngleStr.equals(oldAngleStr)) {
+        // TODO: TURN OFF REACTION HERE
+        deafTo(ui.positionAngleTextField)
         ui.positionAngleTextField.text = newAngleStr
+        // TODO: TURN ON REACTION HERE
+        listenTo(ui.positionAngleTextField)
       }
     })
   }

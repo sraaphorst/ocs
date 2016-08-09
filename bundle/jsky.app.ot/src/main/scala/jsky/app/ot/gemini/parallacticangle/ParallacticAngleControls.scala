@@ -266,7 +266,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
    * A warning icon is displayed if the two are different. This is a consequence of allowing the user to
    * set the PA to something other than the parallactic angle, even when it is selected.
    */
-  def positionAngleChanged(positionAngleText: String): Unit = edt { //ME
+  def positionAngleChanged(positionAngleText: String): Unit = Swing.onEDT { //ME
     // We only do this if the parallactic angle can be calculated, and is different from the PA.
     for {
       e     <- editor
@@ -283,7 +283,7 @@ class ParallacticAngleControls(isPaUi: Boolean) extends GridBagPanel with Publis
   /**
    * This should be called whenever the parallactic angle components need to be reinitialized, and at initialization.
    */
-  def resetComponents(): Unit = edt { //ME
+  def resetComponents(): Unit = Swing.onEDT { //ME
     ui.parallacticAngleFeedback.text = ""
     for {
       e <- editor
