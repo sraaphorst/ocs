@@ -2,6 +2,7 @@ package edu.gemini.itc.shared
 
 import java.time.Instant
 
+import edu.gemini.model.p1.immutable.ImageQuality
 import edu.gemini.pot.ModelConverters._
 import edu.gemini.pot.sp.SPComponentType._
 import edu.gemini.spModel.config2.{Config, ItemKey}
@@ -168,44 +169,43 @@ object ConfigExtractor {
   }
 
   private def extractGsaoi(c: Config, cond: ObservingConditions): String \/ GsaoiParameters = {
+    for {
+      filter      <- extract[Gsaoi.Filter]        (c, FilterKey)
+      readMode    <- extract[Gsaoi.ReadMode]      (c, ReadModeKey)
+      gsaoi       <- createGsaoiParameters(filter, readMode, cond.iq)
+    } yield gsaoi
+  }
 
+  // We need this available outside to calculate the GeMS parameters in ITCRequest.
+  def createGsaoiParameters(filter: Gsaoi.Filter, readMode: Gsaoi.ReadMode, iq: SPSiteQuality.ImageQuality): String \/ GsaoiParameters = {
     import Gsaoi._
     import SPSiteQuality._
 
     val error: String \/ GemsParameters = "GSAOI filter with unknown band".left
 
-    def closestBand(band: MagnitudeBand) =
-      // pick the closest band that's supported by ITC
-      List(MagnitudeBand.J, MagnitudeBand.H, MagnitudeBand.K).minBy(b => Math.abs(b.center.toNanometers - band.center.toNanometers))
-
-
     // a rudimentary approximation for the expected GeMS performance
     // http://www.gemini.edu/sciops/instruments/gems/gems-performance
     // TODO: here we should use the avg Strehl values calculated by the Mascot / AGS algorithms for better results
     def extractGems(filter: Filter): String \/ GemsParameters =
-      filter.getCatalogBand.asScalaOpt.fold(error) { band =>
-        (band, cond.iq) match {
-          case (SingleBand(MagnitudeBand.J), ImageQuality.PERCENT_20) => GemsParameters(0.10, "J").right
-          case (SingleBand(MagnitudeBand.J), ImageQuality.PERCENT_70) => GemsParameters(0.05, "J").right
-          case (SingleBand(MagnitudeBand.J), ImageQuality.PERCENT_85) => GemsParameters(0.02, "J").right
-          case (SingleBand(MagnitudeBand.H), ImageQuality.PERCENT_20) => GemsParameters(0.15, "H").right
-          case (SingleBand(MagnitudeBand.H), ImageQuality.PERCENT_70) => GemsParameters(0.10, "H").right
-          case (SingleBand(MagnitudeBand.H), ImageQuality.PERCENT_85) => GemsParameters(0.05, "H").right
-          case (SingleBand(MagnitudeBand.K), ImageQuality.PERCENT_20) => GemsParameters(0.30, "K").right
-          case (SingleBand(MagnitudeBand.K), ImageQuality.PERCENT_70) => GemsParameters(0.15, "K").right
-          case (SingleBand(MagnitudeBand.K), ImageQuality.PERCENT_85) => GemsParameters(0.10, "K").right
-          case (_, ImageQuality.ANY)             => "GeMS cannot be used in IQ=Any conditions".left
-          case _                                 => "ITC GeMS only supports J, H and K band".left
-        }
+    filter.getCatalogBand.asScalaOpt.fold(error) { band =>
+      (band, iq) match {
+        case (SingleBand(MagnitudeBand.J), ImageQuality.PERCENT_20) => GemsParameters(0.10, "J").right
+        case (SingleBand(MagnitudeBand.J), ImageQuality.PERCENT_70) => GemsParameters(0.05, "J").right
+        case (SingleBand(MagnitudeBand.J), ImageQuality.PERCENT_85) => GemsParameters(0.02, "J").right
+        case (SingleBand(MagnitudeBand.H), ImageQuality.PERCENT_20) => GemsParameters(0.15, "H").right
+        case (SingleBand(MagnitudeBand.H), ImageQuality.PERCENT_70) => GemsParameters(0.10, "H").right
+        case (SingleBand(MagnitudeBand.H), ImageQuality.PERCENT_85) => GemsParameters(0.05, "H").right
+        case (SingleBand(MagnitudeBand.K), ImageQuality.PERCENT_20) => GemsParameters(0.30, "K").right
+        case (SingleBand(MagnitudeBand.K), ImageQuality.PERCENT_70) => GemsParameters(0.15, "K").right
+        case (SingleBand(MagnitudeBand.K), ImageQuality.PERCENT_85) => GemsParameters(0.10, "K").right
+        case (_, ImageQuality.ANY)             => "GeMS cannot be used in IQ=Any conditions".left
+        case _                                 => "ITC GeMS only supports J, H and K band".left
+      }
     }
 
     for {
-      filter      <- extract[Filter]        (c, FilterKey)
-      readMode    <- extract[ReadMode]      (c, ReadModeKey)
-      gems        <- extractGems            (filter)
-    } yield {
-      GsaoiParameters(filter, readMode, gems)
-    }
+      gems <- extractGems(filter)
+    } yield GsaoiParameters(filter, readMode, gems)
   }
 
   private def extractNifs(targetEnv: TargetEnvironment, probe: GuideProbe, when: GOption[java.lang.Long], c: Config): String \/ NifsParameters = {
