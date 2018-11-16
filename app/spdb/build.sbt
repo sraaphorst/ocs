@@ -37,7 +37,8 @@ ocsAppManifest := {
             odbproduction(v),
               gsodb(v),
               gnodb(v),
-	      gnagsodb(v)
+      gnagsodb(v),
+       cpoghostdev(v)
     )
   )
 }
@@ -530,6 +531,7 @@ def gnagsodb(version: Version) = AppConfig(
   )
 ) extending List(odbproduction(version), gnodb_credentials(version))
 
+
 // GSODBTEST
 def gsodbtest(version: Version) = AppConfig(
   id = "gsodbtest",
@@ -579,3 +581,27 @@ def gsodb(version: Version) = AppConfig(
     BundleSpec(50, "edu.gemini.smartgcal.servlet", version)
   )
 ) extending List(odbproduction(version), gsodb_credentials(version))
+
+// CPOGHOSTDEV-LV1
+def cpoghostdev(version: Version) = AppConfig(
+  id = "cpoghostdev-lv1",
+  distribution = List(Linux64),
+  vmargs = List(
+    "-Dcom.cosylab.epics.caj.CAJContext.addr_list=172.17.2.255",
+    "-Dedu.gemini.site=south",
+    "-Dcron.archive.edu.gemini.dbTools.html.ftpHost=gsags.cl.gemini.edu",
+    "-Dcron.odbMail.SITE_SMTP_SERVER=smtp.cl.gemini.edu",
+    "-Djava.rmi.server.hostname=cpoghostdev-lv1",
+    "-Xms2G",
+    "-Xmx2G"
+  ),
+  props = Map(
+    "edu.gemini.auxfile.fits.dest"       -> "/gemsoft/var/data/ictd/test/GS@SEMESTER@/@PROG_ID@",
+    "edu.gemini.auxfile.fits.host"       -> "gsconfig.gemini.edu",
+    "edu.gemini.auxfile.other.dest"      -> "/gemsoft/var/data/finder/GSqueue/Finders-Test/@SEMESTER@/@PROG_ID@",
+    "edu.gemini.dataman.gsa.summit.host" -> "cpofits-lv1.cl.gemini.edu",
+    "edu.gemini.oodb.mail.smtpHost"      -> "smtp.cl.gemini.edu",
+    "edu.gemini.util.trpc.name"          -> "Gemini South GHOST ODB (Test)",
+    "osgi.shell.telnet.ip"               -> "172.17.111.21"
+  )
+) extending List(odbtest(version), gsodbtest_credentials(version))
