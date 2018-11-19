@@ -216,6 +216,6 @@ def ghost(version: Version) = AppConfig(
   distribution=List(TestDistro),
   props = Map(
     "edu.gemini.util.trpc.peer.GN" -> "",
-    "edu.gemini.util.trpc.peer.GS" -> "cpoghostdev-lv1\:8443\:Gemini GHOST ODB"
+    "edu.gemini.util.trpc.peer.GS" -> "cpoghostdev-lv1:8443:Gemini GHOST ODB"
   )
-)
+) extending List(development(version))
