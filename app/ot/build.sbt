@@ -31,7 +31,8 @@ ocsAppManifest := {
             rpm64(v),
       development(v),
         localhost_is_gn(v),
-        localhost_is_gs(v)
+      localhost_is_gs(v),
+        ghost(v)
     )
   )
 }
@@ -208,5 +209,13 @@ def localhost_is_gs(version: Version) = AppConfig(
   )
 ) extending List(development(version))
 
-
-
+// GHOST
+// Configures the default to be the GHOST test machine.
+def ghost(version: Version) = AppConfig(
+  id = "ghost_test",
+  distribution=List(TestDistro),
+  props = Map(
+    "edu.gemini.util.trpc.peer.GN" -> "",
+    "edu.gemini.util.trpc.peer.GS" -> "cpoghostdev-lv1\:8443\:Gemini GHOST ODB"
+  )
+)
