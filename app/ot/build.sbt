@@ -78,8 +78,8 @@ def common(version: Version) = AppConfig(
 def with_test_dbs(version: Version) = AppConfig(
   id = "with-test-dbs",
   props = Map(
-    "edu.gemini.util.trpc.peer.GN" -> "gnodbtest.gemini.edu:8443:Gemini North ODB (Test)",
-    "edu.gemini.util.trpc.peer.GS" -> "gsodbtest.gemini.edu:8443:Gemini South ODB (Test)"
+    "edu.gemini.util.trpc.peer.GN" -> "",
+    "edu.gemini.util.trpc.peer.GS" -> "cpoghostdev-lv1:8443:Gemini GHOST ODB"
   )
 ) extending List(common(version))
 
@@ -87,8 +87,8 @@ def with_test_dbs(version: Version) = AppConfig(
 def with_production_dbs(version: Version) = AppConfig(
   id = "with-production-dbs",
   props = Map(
-    "edu.gemini.util.trpc.peer.GN" -> "gnodb.gemini.edu:8443:Gemini North ODB (Test)",
-    "edu.gemini.util.trpc.peer.GS" -> "gsodb.gemini.edu:8443:Gemini South ODB (Test)"
+    "edu.gemini.util.trpc.peer.GN" -> "",
+    "edu.gemini.util.trpc.peer.GS" -> "cpoghostdev-lv1:8443:Gemini GHOST ODB"
   )
 ) extending List(common(version))
 
@@ -205,7 +205,7 @@ def localhost_is_gs(version: Version) = AppConfig(
   distribution = List(TestDistro),
   props = Map(
     "edu.gemini.util.trpc.peer.GN" -> "",
-    "edu.gemini.util.trpc.peer.GS" -> "localhost:8443:Gemini South ODB (Local)"
+    "edu.gemini.util.trpc.peer.GS" -> "cpoghostdev-lv1:8443:Gemini GHOST ODB"
   )
 ) extending List(development(version))
 
