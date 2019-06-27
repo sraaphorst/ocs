@@ -1,12 +1,13 @@
 package edu.gemini.ags.gems
 
-import edu.gemini.catalog.api._
 import edu.gemini.catalog.votable._
 import edu.gemini.spModel.core.SiderealTarget
 import edu.gemini.spModel.core.{Angle, MagnitudeBand, Coordinates}
 import edu.gemini.spModel.gemini.gems.GemsInstrument
 import edu.gemini.spModel.gemini.obscomp.SPSiteQuality.Conditions
 import edu.gemini.spModel.obs.context.ObsContext
+
+import edu.gemini.catalog.api._
 
 import scala.concurrent.{ExecutionContext, Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -72,7 +73,7 @@ case class GemsVoTableCatalog(backend: VoTableBackend = ConeSearchBackend, catal
       (CatalogQuery(basePosition, c.criterion.radiusConstraint, c.criterion.magConstraint, catalog), c)
     }
     val qm = queryArgs.toMap
-    VoTableClient.catalogs(queryArgs.map(_._1), backend)(ec).map(l => l.map { qr => GemsCatalogSearchResults(qm.get(qr.query).get, qr.result.targets.rows)})
+    VoTableClient.catalogs(queryArgs.map(_._1), backend)(ec).map(l => l.map { qr => GemsCatalogSearchResults(qm(qr.query), qr.result.targets.rows)})
   }
 
   /**
