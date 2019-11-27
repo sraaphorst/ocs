@@ -47,12 +47,14 @@ final class Ghost extends SPInstObsComp(GhostMixin.SP_TYPE) with PropertyProvide
   override def getParamSet(factory: PioFactory): ParamSet = {
     val paramSet = super.getParamSet(factory)
     Pio.addParam(factory, paramSet, Ghost.PORT_PROP, port.name())
+    Pio.addBooleanParam(factory, paramSet, Ghost.ENABLE_FIBER_AGITATOR_PROP.getName, enableFiberAgitator)
     paramSet
   }
 
   override def setParamSet(paramSet: ParamSet): Unit = {
     super.setParamSet(paramSet)
     Option(Pio.getValue(paramSet, Ghost.PORT_PROP)).map(IssPort.valueOf).foreach(setIssPort)
+    setEnableFiberAgitator(Pio.getBooleanValue(paramSet, Ghost.ENABLE_FIBER_AGITATOR_PROP.getName,true))
   }
 
   override def getSysConfig: ISysConfig = {
@@ -60,6 +62,7 @@ final class Ghost extends SPInstObsComp(GhostMixin.SP_TYPE) with PropertyProvide
     sc.putParameter(StringParameter.getInstance(ISPDataObject.VERSION_PROP, getVersion))
     sc.putParameter(DefaultParameter.getInstance(Ghost.POS_ANGLE_PROP, getPosAngle))
     sc.putParameter(DefaultParameter.getInstance(Ghost.PORT_PROP, getIssPort))
+    sc.putParameter(DefaultParameter.getInstance(Ghost.ENABLE_FIBER_AGITATOR_PROP.getName, isEnableFiberAgitator))
     sc
   }
 
@@ -75,6 +78,21 @@ final class Ghost extends SPInstObsComp(GhostMixin.SP_TYPE) with PropertyProvide
       firePropertyChange(Ghost.PORT_PROP, oldValue, newValue)
     }
   }
+
+  /**
+   * Fiber agitator.
+   * Default is enabled.
+   */
+  private var enableFiberAgitator: Boolean = true
+  def isEnableFiberAgitator: Boolean = enableFiberAgitator
+  def setEnableFiberAgitator(newValue: Boolean): Unit = {
+    val oldValue = isEnableFiberAgitator
+    if (oldValue != newValue) {
+      enableFiberAgitator = newValue
+      firePropertyChange(Ghost.ENABLE_FIBER_AGITATOR_PROP, oldValue, newValue)
+    }
+  }
+
 }
 
 object Ghost {
@@ -164,7 +182,8 @@ object Ghost {
   private val iter_no   = false
 
   val POS_ANGLE_PROP: PropertyDescriptor = initProp(InstConstants.POS_ANGLE_PROP, query = query_no, iter = iter_no)
-  val PORT_PROP: PropertyDescriptor = initProp(IssPortProvider.PORT_PROPERTY_NAME, query_no, iter_no)
+  val PORT_PROP: PropertyDescriptor = initProp(IssPortProvider.PORT_PROPERTY_NAME, query = query_no, iter = iter_no)
+  val ENABLE_FIBER_AGITATOR_PROP: PropertyDescriptor = initProp("enableFiberAgitator", query = query_no, iter = iter_no)
 
   // Use Java classes to be compatible with existing instruments.
   private val Properties: List[(String, PropertyDescriptor)] = List(
