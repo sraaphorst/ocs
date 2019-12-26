@@ -553,6 +553,14 @@
             uiClassName="jsky.app.ot.gemini.editor.EdIterFlatObs"/>
 
     <UIInfo
+            dataObject="edu.gemini.spModel.gemini.seqcomp.GhostSeqRepeatFlatObs"
+            name="GHOST Cal Unit Flat/Arc Sequence Component"
+            type="iterObs"
+            imageKey="seqobs.gif"
+            shortDescription="Configure the GHOST Calibration Unit with this component."
+            uiClassName="jsky.app.ot.gemini.editor.GhostEdIterFlatObs"/>
+
+    <UIInfo
             dataObject="edu.gemini.spModel.gemini.seqcomp.SeqRepeatOffset"
             name="Offset Sequence Component"
             type="iterComp"
