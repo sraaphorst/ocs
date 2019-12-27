@@ -2,6 +2,7 @@ package jsky.app.ot.gemini.editor;
 
 import edu.gemini.pot.sp.ISPSeqComponent;
 import edu.gemini.spModel.gemini.calunit.CalUnitParams;
+import edu.gemini.spModel.gemini.seqcomp.GhostSeqRepeatFlatObs;
 import edu.gemini.spModel.gemini.seqcomp.SeqRepeatFlatObs;
 import edu.gemini.spModel.obsclass.ObsClass;
 import jsky.app.ot.OTOptions;
@@ -38,7 +39,7 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
     /**
      * The constructor initializes the user interface.
      */
-    public EdIterFlatObs() {
+    public GhostEdIterFlatObs() {
         _w.repeatSpinner.setModel(new SpinnerNumberModel(1, 1, null, 1));
         sped = new SpinnerEditor(_w.repeatSpinner, new SpinnerEditor.Functions() {
             @Override public int getValue() {
@@ -123,8 +124,6 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
 
             _w.diffuser.setValue(getDataObject().getDiffuser());
             _w.obsClass.setValue(getDataObject().getObsClass());
-            _w.exposureTime.setValue(getDataObject().getExposureTime());
-            _w.coadds.setValue(getDataObject().getCoaddsCount());
 
             _updateEnabledStates();
         } catch (Exception e) {
@@ -155,11 +154,6 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
      */
     @Override
     public void textBoxKeyPress(TextBoxWidget tbwe) {
-        if (tbwe == _w.exposureTime) {
-            getDataObject().setExposureTime(tbwe.getDoubleValue(1.));
-        } else if (tbwe == _w.coadds) {
-            getDataObject().setCoaddsCount(tbwe.getIntegerValue(1));
-        }
     }
 
     private boolean isIrGreyBody() {
@@ -230,7 +224,4 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
         }
         _update();
     }
-}
-
-{
 }

@@ -4,6 +4,7 @@
 package edu.gemini.spModel.pio;
 
 import scala.Tuple2;
+import scalaz.Alpha;
 import squants.Dimension;
 import squants.Quantity;
 
@@ -125,6 +126,17 @@ public final class Pio {
     	} catch (IllegalArgumentException iae) {
     		return def;
     	}
+    }
+
+    public static <E extends Enum<E>> E getEnumValue(PioNodeParent context, String path, Class<E> enumType) {
+        final String name = getValue(context, path);
+        if (name == null) return null;
+
+        try {
+            return Enum.valueOf(enumType, name);
+        } catch (final IllegalArgumentException iae) {
+            return null;
+        }
     }
 
     // UX-1505.  An anonymous subclass of an enum value can't be used with
