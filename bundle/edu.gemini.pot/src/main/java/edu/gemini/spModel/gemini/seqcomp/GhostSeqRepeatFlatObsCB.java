@@ -2,10 +2,7 @@ package edu.gemini.spModel.gemini.seqcomp;
 
 import edu.gemini.pot.sp.ISPSeqComponent;
 import edu.gemini.spModel.config.AbstractSeqComponentCB;
-import edu.gemini.spModel.data.config.DefaultParameter;
-import edu.gemini.spModel.data.config.DefaultSysConfig;
-import edu.gemini.spModel.data.config.IConfig;
-import edu.gemini.spModel.data.config.ISysConfig;
+import edu.gemini.spModel.data.config.*;
 import edu.gemini.spModel.dataflow.GsaSequenceEditor;
 import edu.gemini.spModel.gemini.calunit.CalUnitConstants;
 import edu.gemini.spModel.gemini.calunit.CalUnitParams.*;
@@ -20,6 +17,8 @@ import java.util.Map;
  * A configuration builder for the Gemini CalUnit sequence component for GHOST.
  */
 public class GhostSeqRepeatFlatObsCB extends AbstractSeqComponentCB {
+    private static final long serialVersionUID = 1L;
+
     private transient int _curCount;
     private transient int _max;
     private transient int _limit;
@@ -64,18 +63,18 @@ public class GhostSeqRepeatFlatObsCB extends AbstractSeqComponentCB {
         // a manual calibration for executed or partially executed sequences.
         CalConfigBuilderUtil.clear(config);
 
-        // Now write the configuration for this manual cal into the sequence.
-        //Config c = CalConfigFactory.complete(mics);
         final GhostSeqRepeatFlatObs c = (GhostSeqRepeatFlatObs) getDataObject();
         config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
                 DefaultParameter.getInstance(CalUnitConstants.LAMP_PROP, Lamp.write(c.getLamps())));
         config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
-                DefaultParameter.getInstance(CalUnitConstants.SHUTTER_PROP, c.getShutter().name()));
+                DefaultParameter.getInstance(CalUnitConstants.SHUTTER_PROP, c.getShutter().sequenceValue()));
         config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
-                DefaultParameter.getInstance(CalUnitConstants.FILTER_PROP, c.getFilter().name()));
+                DefaultParameter.getInstance(CalUnitConstants.FILTER_PROP, c.getFilter().sequenceValue()));
         config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
-                DefaultParameter.getInstance(CalUnitConstants.DIFFUSER_PROP, c.getDiffuser().name()));
-        //CalConfigBuilderUtil.updateIConfig(c, config, prevFull);
+                DefaultParameter.getInstance(CalUnitConstants.DIFFUSER_PROP, c.getDiffuser().sequenceValue()));
+        config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
+                StringParameter.getInstance(InstConstants.OBS_CLASS_PROP,
+                        c.getObsClass().sequenceValue()));
 
         GsaSequenceEditor.instance.addProprietaryPeriod(config, getSeqComponent().getProgram(), c.getObsClass());
 

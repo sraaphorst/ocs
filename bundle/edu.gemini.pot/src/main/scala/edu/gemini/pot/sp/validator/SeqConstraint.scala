@@ -13,8 +13,8 @@ object SeqConstraint {
     .addNarrow[ISPSeqComponent](ITERATOR_CALUNIT, ITERATOR_REPEAT)
 
   def initialTypesForInstrument(ct: SPComponentType): Types = ct match {
-    case INSTRUMENT_GHOST => genericTypes - OBSERVER_DARK
-    case _                => genericTypes - OBSERVER_GHOST_DARK
+    case INSTRUMENT_GHOST => genericTypes - OBSERVER_DARK - OBSERVER_GEMFLAT
+    case _                => genericTypes - OBSERVER_GHOST_DARK - OBSERVER_GHOST_GEMFLAT
   }
 
   // Almost all instruments have their own iterator type

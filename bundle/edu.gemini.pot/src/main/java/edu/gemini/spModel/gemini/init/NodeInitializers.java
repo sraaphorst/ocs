@@ -45,6 +45,7 @@ import edu.gemini.spModel.gemini.obscomp.SPProgram;
 import edu.gemini.spModel.gemini.phoenix.InstPhoenix;
 import edu.gemini.spModel.gemini.phoenix.SeqConfigPhoenix;
 import edu.gemini.spModel.gemini.plan.NightlyRecord;
+import edu.gemini.spModel.gemini.seqcomp.GhostSeqRepeatFlatObs;
 import edu.gemini.spModel.gemini.seqcomp.SeqRepeatFlatObs;
 import edu.gemini.spModel.gemini.seqcomp.SeqRepeatOffset;
 import edu.gemini.spModel.gemini.seqcomp.SeqRepeatSmartGcalObs;
@@ -74,6 +75,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -97,9 +99,9 @@ public enum NodeInitializers {
     {
         // Default values, one for each instrument type.
         final Map<Instrument, ISPNodeInitializer<ISPObservation, SPObservation>> m =
-                Arrays.asList(Instrument.values()).stream().collect(Collectors.toMap(
+                Arrays.stream(Instrument.values()).collect(Collectors.toMap(
                     Function.identity(),
-                    i -> ObservationNI.forInstrument(i)));
+                        ObservationNI::forInstrument));
 
         // Replace default values with more specific initializers as necessary.
         m.put(Instrument.Gsaoi, Gsaoi.OBSERVATION_NI);
@@ -109,7 +111,7 @@ public enum NodeInitializers {
     }
 
     public final ISPNodeInitializer<ISPObservation, SPObservation> obs(Option<Instrument> inst) {
-        return inst.map(i -> obsInitMap.get(i)).getOrElse(obsNoInstrument);
+        return inst.map(obsInitMap::get).getOrElse(obsNoInstrument);
     }
 
     public final ISPNodeInitializer<ISPObsExecLog, ObsExecLog> obsExecLog =
@@ -135,7 +137,7 @@ public enum NodeInitializers {
 
     public final Map<SPComponentType, ISPNodeInitializer<ISPObsComponent, ? extends ISPDataObject>> obsComp =
             Collections.unmodifiableMap(
-                Arrays.asList(
+                Stream.of(
                     Flamingos2.NI,
                     Gems.NI,
                     Ghost.NI(),
@@ -163,14 +165,14 @@ public enum NodeInitializers {
                     SPSiteQuality.NI,
                     TargetObsComp.NI,
                     VisitorInstrument.NI
-                ).stream().collect(
-                    Collectors.toMap(ni -> ni.getType(), Function.identity())
+                ).collect(
+                    Collectors.toMap(ISPNodeInitializer::getType, Function.identity())
                 )
             );
 
     public final Map<SPComponentType, ISPNodeInitializer<ISPSeqComponent, ? extends ISPSeqObject>> seqComp =
             Collections.unmodifiableMap(
-                Arrays.asList(
+                Stream.of(
                     GsaoiSeqConfig.NI,
                     SeqBase.NI,
                     SeqConfigAcqCam.NI,
@@ -193,6 +195,7 @@ public enum NodeInitializers {
                     GhostSeqRepeatDarkObs.NI,
                     SeqRepeatDarkObs.NI,
                     SeqRepeatFlatObs.NI,
+                    GhostSeqRepeatFlatObs.NI,
                     SeqRepeatObserve.NI,
                     SeqRepeatOffset.NI,
                     SeqRepeatGpiOffset.NI,
@@ -201,8 +204,8 @@ public enum NodeInitializers {
                     SeqRepeatSmartGcalObs.BaselineDay.NI,
                     SeqRepeatSmartGcalObs.BaselineNight.NI,
                     SeqRepeatSmartGcalObs.Flat.NI
-                ).stream().collect(
-                    Collectors.toMap(ni -> ni.getType(), Function.identity())
+                ).collect(
+                    Collectors.toMap(ISPNodeInitializer::getType, Function.identity())
                 )
             );
 }

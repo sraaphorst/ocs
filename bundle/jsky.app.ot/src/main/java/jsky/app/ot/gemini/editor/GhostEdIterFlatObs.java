@@ -3,7 +3,6 @@ package jsky.app.ot.gemini.editor;
 import edu.gemini.pot.sp.ISPSeqComponent;
 import edu.gemini.spModel.gemini.calunit.CalUnitParams;
 import edu.gemini.spModel.gemini.seqcomp.GhostSeqRepeatFlatObs;
-import edu.gemini.spModel.gemini.seqcomp.SeqRepeatFlatObs;
 import edu.gemini.spModel.obsclass.ObsClass;
 import jsky.app.ot.OTOptions;
 import jsky.app.ot.editor.OtItemEditor;
@@ -11,37 +10,76 @@ import jsky.app.ot.editor.SpinnerEditor;
 import jsky.app.ot.editor.type.SpTypeUIUtil;
 import jsky.util.gui.DialogUtil;
 import jsky.util.gui.TextBoxWidget;
+import jsky.util.gui.TextBoxWidgetWatcher;
 
 import javax.swing.*;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemListener;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
-public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRepeatFlatObs>
-        implements jsky.util.gui.TextBoxWidgetWatcher {
-
-    // the GUI layout panel
-    private final IterFlatObsForm _w = new IterFlatObsForm();
+public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRepeatFlatObs> {
+    private final GhostIterFlatObsForm form;
+    private final SpinnerEditor sped;
+    private final SpinnerEditor rcSped;
+    private final SpinnerEditor bcSped;
 
     // If true, ignore action events
     private boolean ignoreActions = false;
-
     private static final String LAMP_PROPERTY = "Lamp";
 
-    private final ActionListener lampListener = e -> _lampSelected();
-
-    private final ItemListener arcListener = e -> _arcSelected();
-
-    private final SpinnerEditor sped;
+    // Listeners
+    private final ActionListener lampListener = e -> lampSelected();
+    private final ItemListener arcListener = e -> arcSelected();
 
     /**
      * The constructor initializes the user interface.
      */
     public GhostEdIterFlatObs() {
-        _w.repeatSpinner.setModel(new SpinnerNumberModel(1, 1, null, 1));
-        sped = new SpinnerEditor(_w.repeatSpinner, new SpinnerEditor.Functions() {
+        form = new GhostIterFlatObsForm();
+
+        final List<CalUnitParams.Lamp> flatLamps = CalUnitParams.Lamp.flatLamps();
+        for (int i = 0; i < form.lamps.length; i++) {
+            final CalUnitParams.Lamp l = flatLamps.get(i);
+            form.lamps[i].putClientProperty(LAMP_PROPERTY, l);
+            form.lamps[i].setText(l.displayValue());
+            form.lamps[i].addActionListener(lampListener);
+        }
+        final List<CalUnitParams.Lamp> arcLamps = CalUnitParams.Lamp.arcLamps();
+        for (int i = 0; i < form.arcs.length; i++) {
+            final CalUnitParams.Lamp l = arcLamps.get(i);
+            form.arcs[i].putClientProperty(LAMP_PROPERTY, l);
+            form.arcs[i].setText(l.displayValue());
+            form.arcs[i].addItemListener(arcListener);
+        }
+
+        form.shutter.setChoices(CalUnitParams.Shutter.values());
+
+        // Set up the filter editor.
+        SpTypeUIUtil.initListBox(form.filter, CalUnitParams.Filter.class,
+                e -> getDataObject().setFilter((CalUnitParams.Filter) Objects.requireNonNull(form.filter.getSelectedItem())));
+
+        form.diffuser.setChoices(CalUnitParams.Diffuser.values());
+        form.obsClass.setChoices(ObsClass.values());
+
+        form.shutter.addWatcher((ddlbwe, index, val) -> {
+            getDataObject().setShutter(CalUnitParams.Shutter.getShutterByIndex(index));
+            updateEnabledStates();
+        });
+
+        form.diffuser.addWatcher((ddlbwe, index, val) -> {
+            getDataObject().setDiffuser(CalUnitParams.Diffuser.getDiffuserByIndex(index));
+            updateEnabledStates();
+        });
+
+        form.obsClass.addWatcher((ddlbwe, index, val) -> {
+            getDataObject().setObsClass(ObsClass.values()[index]);
+            updateEnabledStates();
+        });
+
+        sped = new SpinnerEditor(form.repeatSpinner, new SpinnerEditor.Functions() {
             @Override public int getValue() {
                 return getDataObject().getStepCount();
             }
@@ -50,44 +88,26 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
             }
         });
 
-        final List<CalUnitParams.Lamp> flatLamps = CalUnitParams.Lamp.flatLamps();
-        for (int i = 0; i < _w.lamps.length; i++) {
-            final CalUnitParams.Lamp l = flatLamps.get(i);
-            _w.lamps[i].putClientProperty(LAMP_PROPERTY, l);
-            _w.lamps[i].setText(l.displayValue());
-            _w.lamps[i].addActionListener(lampListener);
-        }
-        final List<CalUnitParams.Lamp> arcLamps = CalUnitParams.Lamp.arcLamps();
-        for (int i = 0; i < _w.arcs.length; i++) {
-            final CalUnitParams.Lamp l = arcLamps.get(i);
-            _w.arcs[i].putClientProperty(LAMP_PROPERTY, l);
-            _w.arcs[i].setText(l.displayValue());
-            _w.arcs[i].addItemListener(arcListener);
-        }
-
-        _w.shutter.setChoices(CalUnitParams.Shutter.values());
-
-        // Set up the filter editor.
-        SpTypeUIUtil.initListBox(_w.filter, CalUnitParams.Filter.class,
-                e -> getDataObject().setFilter((CalUnitParams.Filter) _w.filter.getSelectedItem()));
-
-        _w.diffuser.setChoices(CalUnitParams.Diffuser.values());
-        _w.obsClass.setChoices(ObsClass.values());
-
-        _w.exposureTime.addWatcher(this);
-        _w.coadds.addWatcher(this);
-        _w.shutter.addWatcher((ddlbwe, index, val) -> {
-            getDataObject().setShutter(CalUnitParams.Shutter.getShutterByIndex(index));
-            _updateEnabledStates();
+        form.redExposureTime.addWatcher(new TextBoxWidgetWatcher() {
+            @Override
+            public void textBoxKeyPress(TextBoxWidget tbwe) {
+                getDataObject().setRedExposureTime(tbwe.getDoubleValue(1.0));
+            }
+        });
+        rcSped = new SpinnerEditor(form.redExposureCount, new SpinnerEditor.Functions() {
+            @Override public int getValue() { return getDataObject().getRedExposureCount(); }
+            @Override public void setValue(int newValue) { getDataObject().setRedExposureCount(newValue); }
         });
 
-        _w.diffuser.addWatcher((ddlbwe, index, val) -> {
-            getDataObject().setDiffuser(CalUnitParams.Diffuser.getDiffuserByIndex(index));
-            _updateEnabledStates();
+        form.blueExposureTime.addWatcher(new TextBoxWidgetWatcher() {
+            @Override
+            public void textBoxKeyPress(TextBoxWidget tbwe) {
+                getDataObject().setBlueExposureTime(tbwe.getDoubleValue(1.0));
+            }
         });
-        _w.obsClass.addWatcher((ddlbwe, index, val) -> {
-            getDataObject().setObsClass(ObsClass.values()[index]);
-            _updateEnabledStates();
+        bcSped = new SpinnerEditor(form.blueExposureCount, new SpinnerEditor.Functions() {
+            @Override public int getValue() { return getDataObject().getBlueExposureCount(); }
+            @Override public void setValue(int newValue) { getDataObject().setBlueExposureCount(newValue); }
         });
     }
 
@@ -96,64 +116,61 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
      */
     @Override
     public JPanel getWindow() {
-        return _w;
+        return form;
     }
 
     @Override
     public void init() {
-        _update();
+        update();
         sped.init();
+        rcSped.init();
+        bcSped.init();
     }
 
     @Override
     public void cleanup() {
         sped.cleanup();
+        rcSped.cleanup();
+        bcSped.cleanup();
     }
 
     // Update the widgets to reflect the model settings
-    private void _update() {
+    private void update() {
         ignoreActions = true;
         try {
-            _showLamps();
-            _w.shutter.setValue(getDataObject().getShutter());
+            showLamps();
+            form.shutter.setValue(getDataObject().getShutter());
 
             // Set the selected item directly on the model to allow for
             // obsolete types to be displayed. If set on the widget itself,
             // it will not be displayed in the combo box.
-            _w.filter.getModel().setSelectedItem(getDataObject().getFilter());
+            form.filter.getModel().setSelectedItem(getDataObject().getFilter());
 
-            _w.diffuser.setValue(getDataObject().getDiffuser());
-            _w.obsClass.setValue(getDataObject().getObsClass());
+            form.diffuser.setValue(getDataObject().getDiffuser());
+            form.obsClass.setValue(getDataObject().getObsClass());
 
-            _updateEnabledStates();
+            updateEnabledStates();
         } catch (Exception e) {
             DialogUtil.error(e);
         }
         ignoreActions = false;
     }
 
-    // update the lamp display to reflect the data object
-    private void _showLamps() {
+    // Update the lamp display to reflect the data object
+    private void showLamps() {
         final Set<CalUnitParams.Lamp> lamps = getDataObject().getLamps();
-        for (JCheckBox b : _w.arcs) {
+        for (final JCheckBox b : form.arcs) {
             final CalUnitParams.Lamp l = (CalUnitParams.Lamp) b.getClientProperty(LAMP_PROPERTY);
             b.removeItemListener(arcListener);
             b.setSelected(lamps.contains(l));
             b.addItemListener(arcListener);
         }
-        for (JRadioButton b : _w.lamps) {
+        for (final JRadioButton b : form.lamps) {
             final CalUnitParams.Lamp l = (CalUnitParams.Lamp) b.getClientProperty(LAMP_PROPERTY);
             b.removeActionListener(lampListener);
             b.setSelected(lamps.contains(l));
             b.addActionListener(lampListener);
         }
-    }
-
-    /**
-     * Watch changes to text box widgets.
-     */
-    @Override
-    public void textBoxKeyPress(TextBoxWidget tbwe) {
     }
 
     private boolean isIrGreyBody() {
@@ -162,29 +179,29 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
     }
 
     /**
-     * Update the enabled states of the widgets based on the current values
+     * Update the enabled states of the widgets based on the current values.
      */
-    private void _updateEnabledStates() {
-        // disable lamp radiobuttons if an arc was selected
+    private void updateEnabledStates() {
+        // Disable lamp radio buttons if an arc was selected.
         final boolean isLamp = !getDataObject().isArc();
-        for (final JRadioButton _lampButton : _w.lamps) {
-            _lampButton.setEnabled(isLamp);
+        for (final JRadioButton lampButton : form.lamps) {
+            lampButton.setEnabled(isLamp);
         }
 
         final boolean editable = OTOptions.areRootAndCurrentObsIfAnyEditable(getProgram(), getContextObservation());
-        _w.shutter.setEnabled(isIrGreyBody() && editable);
+        form.shutter.setEnabled(isIrGreyBody() && editable);
     }
 
-    // Called when one of the lamp radiobuttons is selected
-    private void _lampSelected() {
+    // Called when one of the lamp radio buttons is selected.
+    private void lampSelected() {
         if (ignoreActions) {
             return;
         }
-        for (int i = 0; i < _w.lamps.length; i++) {
-            if (_w.lamps[i].isSelected()) {
+        for (int i = 0; i < form.lamps.length; i++) {
+            if (form.lamps[i].isSelected()) {
                 final CalUnitParams.Lamp lamp = CalUnitParams.Lamp.flatLamps().get(i);
                 getDataObject().setLamp(lamp);
-                getDataObject().setDiffuser(lamp == CalUnitParams.Lamp.QUARTZ ? CalUnitParams.Diffuser.VISIBLE : CalUnitParams.Diffuser.IR);  // See OT-426
+                getDataObject().setDiffuser(lamp == CalUnitParams.Lamp.QUARTZ ? CalUnitParams.Diffuser.VISIBLE : CalUnitParams.Diffuser.IR);
                 final boolean b = (lamp == CalUnitParams.Lamp.IR_GREY_BODY_HIGH ||
                         lamp == CalUnitParams.Lamp.IR_GREY_BODY_LOW);
                 if (b) {
@@ -193,25 +210,25 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
                     getDataObject().setShutter(CalUnitParams.Shutter.CLOSED);
                 }
                 getDataObject().setObsClass(getDataObject().getDefaultObsClass());
-                _update();
+                update();
                 break;
             }
         }
-        _update();
+        update();
     }
 
     // Called when one of the arc checkboxes changes state
-    private void _arcSelected() {
+    private void arcSelected() {
         if (ignoreActions) {
             return;
         }
-        final ArrayList<CalUnitParams.Lamp> arcs = new ArrayList<>(_w.arcs.length);
-        boolean foundCuAR = false;  // See OT-426
-        for (int i = 0; i < _w.arcs.length; i++) {
-            if (_w.arcs[i].isSelected()) {
+        final List<CalUnitParams.Lamp> arcs = new ArrayList<>(form.arcs.length);
+        boolean foundCuAR = false;
+        for (int i = 0; i < form.arcs.length; i++) {
+            if (form.arcs[i].isSelected()) {
                 final CalUnitParams.Lamp lamp = CalUnitParams.Lamp.arcLamps().get(i);
                 arcs.add(lamp);
-                foundCuAR |= lamp == CalUnitParams.Lamp.CUAR_ARC;  // See OT-426
+                foundCuAR |= lamp == CalUnitParams.Lamp.CUAR_ARC;
             }
         }
         if (arcs.size() != 0) {
@@ -220,8 +237,8 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
             getDataObject().setObsClass(getDataObject().getDefaultObsClass());
             getDataObject().setDiffuser(foundCuAR ? CalUnitParams.Diffuser.VISIBLE : CalUnitParams.Diffuser.IR); // See OT-426
         } else {
-            _lampSelected();
+            lampSelected();
         }
-        _update();
+        update();
     }
 }
