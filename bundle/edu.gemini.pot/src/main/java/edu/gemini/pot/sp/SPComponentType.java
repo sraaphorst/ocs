@@ -83,6 +83,7 @@ public enum SPComponentType implements Serializable {
     OBSERVER_DARK(OBSERVER, "dark", "Manual Dark"),
     OBSERVER_GHOST_DARK(OBSERVER, "ghostDark", "Manual Ghost Dark"),
     OBSERVER_GEMFLAT(OBSERVER, "GemFlat", "Manual Flat/Arc"),
+    OBSERVER_GHOST_GEMFLAT(OBSERVER, "ghostGemFlat", "Manual Ghost Flat/Arc"),
     OBSERVER_OBSERVE(OBSERVER, "observe", "Observe"),
     OBSERVER_SMARTARC(OBSERVER, "SmartArc", "Arc"),
     OBSERVER_SMARTFLAT(OBSERVER, "SmartFlat", "Flat"),

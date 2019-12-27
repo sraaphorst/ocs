@@ -29,7 +29,7 @@ public class SeqRepeatFlatObs extends SeqRepeatCoaddExp
     public static final SPComponentType SP_TYPE = SPComponentType.OBSERVER_GEMFLAT;
 
     public static final ISPNodeInitializer<ISPSeqComponent, SeqRepeatFlatObs> NI =
-        new ComponentNodeInitializer<>(SP_TYPE, () -> new SeqRepeatFlatObs(), c -> new SeqRepeatFlatObsCB(c));
+        new ComponentNodeInitializer<>(SP_TYPE, SeqRepeatFlatObs::new, SeqRepeatFlatObsCB::new);
 
     public static final String OBSERVE_TYPE = InstConstants.DARK_OBSERVE_TYPE;
 

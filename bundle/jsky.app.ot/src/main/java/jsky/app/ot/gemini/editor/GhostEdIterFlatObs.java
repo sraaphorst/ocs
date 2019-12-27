@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, SeqRepeatFlatObs>
+public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRepeatFlatObs>
         implements jsky.util.gui.TextBoxWidgetWatcher {
 
     // the GUI layout panel
