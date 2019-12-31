@@ -14,7 +14,7 @@ import edu.gemini.spModel.gemini.init.{ComponentNodeInitializer, ObservationNI}
 import edu.gemini.spModel.obs.SPObservation
 import edu.gemini.spModel.obscomp.{InstConfigInfo, InstConstants, SPInstObsComp}
 import edu.gemini.spModel.pio.{ParamSet, Pio, PioFactory}
-import edu.gemini.spModel.seqcomp.SeqConfigNames
+import edu.gemini.spModel.seqcomp.{GhostSeqRepeatExp, SeqConfigNames}
 import edu.gemini.spModel.seqcomp.SeqConfigNames.INSTRUMENT_KEY
 import edu.gemini.spModel.target.env.TargetEnvironment
 import edu.gemini.spModel.target.obsComp.TargetObsComp
@@ -343,9 +343,11 @@ object Ghost {
   val PORT_PROP: PropertyDescriptor = initProp(IssPortProvider.PORT_PROPERTY_NAME, query = query_no, iter = iter_no)
   val ENABLE_FIBER_AGITATOR_PROP: PropertyDescriptor = initProp("enableFiberAgitator", query = query_no, iter = iter_no)
   val RED_EXPOSURE_TIME_PROP: PropertyDescriptor = initProp("redExposureTime", query = query_no, iter = iter_no)
+  val RED_EXPOSURE_COUNT_PROP: PropertyDescriptor = PropertySupport.init("redExposureCount", classOf[GhostSeqRepeatExp], query_no, iter_no);
   val RED_BINNING_PROP: PropertyDescriptor = initProp("redBinning", query = query_yes, iter = iter_yes)
   val RED_READ_NOISE_GAIN_PROP: PropertyDescriptor = initProp("redReadNoiseGain", query = query_no, iter = iter_no)
   val BLUE_EXPOSURE_TIME_PROP: PropertyDescriptor = initProp("blueExposureTime", query = query_no, iter = iter_no)
+  val BLUE_EXPOSURE_COUNT_PROP: PropertyDescriptor = PropertySupport.init("blueExposureCount", classOf[GhostSeqRepeatExp], query_no, iter_no);
   val BLUE_BINNING_PROP: PropertyDescriptor = initProp("blueBinning", query = query_yes, iter = iter_yes)
   val BLUE_READ_NOISE_GAIN_PROP: PropertyDescriptor = initProp("blueReadNoiseGain", query = query_no, iter = iter_no)
 
