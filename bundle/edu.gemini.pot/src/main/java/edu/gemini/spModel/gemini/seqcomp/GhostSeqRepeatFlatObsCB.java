@@ -7,7 +7,9 @@ import edu.gemini.spModel.dataflow.GsaSequenceEditor;
 import edu.gemini.spModel.gemini.calunit.CalUnitConstants;
 import edu.gemini.spModel.gemini.calunit.CalUnitParams.*;
 import edu.gemini.spModel.gemini.calunit.calibration.CalConfigBuilderUtil;
+import edu.gemini.spModel.gemini.ghost.Ghost$;
 import edu.gemini.spModel.obscomp.InstConstants;
+import edu.gemini.spModel.seqcomp.GhostSeqRepeatExp;
 import edu.gemini.spModel.seqcomp.SeqConfigNames;
 import edu.gemini.spModel.seqcomp.SeqRepeatCbOptions;
 
@@ -19,12 +21,12 @@ import java.util.Map;
 public class GhostSeqRepeatFlatObsCB extends AbstractSeqComponentCB {
     private static final long serialVersionUID = 1L;
 
-    private transient int _curCount;
-    private transient int _max;
-    private transient int _limit;
-    private transient Map<String, Object> _options;
+    private transient int curCount;
+    private transient int max;
+    private transient int limit;
+    private transient Map<String, Object> options;
 
-    private transient String _obsClass;
+    private transient String obsClass;
 
     public GhostSeqRepeatFlatObsCB(ISPSeqComponent seqComp) {
         super(seqComp);
@@ -32,31 +34,31 @@ public class GhostSeqRepeatFlatObsCB extends AbstractSeqComponentCB {
 
     public Object clone() {
         final GhostSeqRepeatFlatObsCB result = (GhostSeqRepeatFlatObsCB) super.clone();
-        result._curCount = 0;
-        result._max      = 0;
-        result._limit    = 0;
-        result._options  = null;
-        result._obsClass = null;
+        result.curCount = 0;
+        result.max = 0;
+        result.limit = 0;
+        result.options = null;
+        result.obsClass = null;
         return result;
     }
 
     @Override
     protected void thisReset(Map<String, Object> options) {
-        _curCount = 0;
+        curCount = 0;
         final GhostSeqRepeatFlatObs c = (GhostSeqRepeatFlatObs) getDataObject();
-        _max = c.getStepCount();
-        _limit = SeqRepeatCbOptions.getCollapseRepeat(options) ? 1 : _max;
+        max = c.getStepCount();
+        limit = SeqRepeatCbOptions.getCollapseRepeat(options) ? 1 : max;
 
-        _obsClass = c.getObsClass().sequenceValue();
-        _options = options;
+        obsClass = c.getObsClass().sequenceValue();
+        this.options = options;
     }
 
     protected boolean thisHasNext() {
-        return _curCount < _limit;
+        return curCount < limit;
     }
 
     protected void thisApplyNext(IConfig config, IConfig prevFull) {
-        ++_curCount;
+        ++curCount;
 
         // Remove any executed smartcal data placed in the config by the
         // GemObservationCB.  This can happen when converting a smart cal to
@@ -72,16 +74,27 @@ public class GhostSeqRepeatFlatObsCB extends AbstractSeqComponentCB {
                 DefaultParameter.getInstance(CalUnitConstants.FILTER_PROP, c.getFilter().sequenceValue()));
         config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
                 DefaultParameter.getInstance(CalUnitConstants.DIFFUSER_PROP, c.getDiffuser().sequenceValue()));
+
         config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
                 StringParameter.getInstance(InstConstants.OBS_CLASS_PROP,
                         c.getObsClass().sequenceValue()));
 
+        config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
+                DefaultParameter.getInstance(Ghost$.MODULE$.RED_EXPOSURE_TIME_PROP(), c.getRedExposureTime()));
+        config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
+                DefaultParameter.getInstance(GhostSeqRepeatExp.GHOST_RED_EXPOSURE_COUNT, c.getRedExposureCount()));
+
+        config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
+                DefaultParameter.getInstance(Ghost$.MODULE$.BLUE_EXPOSURE_TIME_PROP(), c.getBlueExposureTime()));
+        config.putParameter(SeqConfigNames.OBSERVE_CONFIG_NAME,
+                DefaultParameter.getInstance(GhostSeqRepeatExp.GHOST_BLUE_EXPOSURE_COUNT, c.getBlueExposureCount()));
+
         GsaSequenceEditor.instance.addProprietaryPeriod(config, getSeqComponent().getProgram(), c.getObsClass());
 
-        if (SeqRepeatCbOptions.getAddObsCount(_options)) {
+        if (SeqRepeatCbOptions.getAddObsCount(options)) {
             ISysConfig obs = getObsSysConfig(config);
             obs.putParameter(
-                    DefaultParameter.getInstance(InstConstants.REPEAT_COUNT_PROP, _max));
+                    DefaultParameter.getInstance(InstConstants.REPEAT_COUNT_PROP, max));
         }
     }
 

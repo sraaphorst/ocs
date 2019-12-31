@@ -25,6 +25,7 @@ public class GhostEdIterDarkObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
             @Override public void setValue(int newValue) { getDataObject().setStepCount(newValue); }
         });
 
+        System.out.println("*** ADDING WATCHERS ***");
         form.redExposureTime.addWatcher(new TextBoxWidgetWatcher() {
             @Override
             public void textBoxKeyPress(TextBoxWidget tbwe) {

@@ -64,6 +64,12 @@ public class GhostIterFlatObsForm extends JPanel {
                         FormFactory.LINE_GAP_ROWSPEC,
                         FormFactory.DEFAULT_ROWSPEC,
                         FormFactory.LINE_GAP_ROWSPEC,
+                        FormFactory.DEFAULT_ROWSPEC,
+                        FormFactory.LINE_GAP_ROWSPEC,
+                        FormFactory.DEFAULT_ROWSPEC,
+                        FormFactory.LINE_GAP_ROWSPEC,
+                        FormFactory.DEFAULT_ROWSPEC,
+                        FormFactory.LINE_GAP_ROWSPEC,
                         new RowSpec(RowSpec.CENTER, Sizes.DEFAULT, FormSpec.DEFAULT_GROW)
                 });
         setLayout(formLayout);
@@ -108,10 +114,6 @@ public class GhostIterFlatObsForm extends JPanel {
                         FormFactory.DEFAULT_COLSPEC,
                         FormFactory.UNRELATED_GAP_COLSPEC,
                         FormFactory.DEFAULT_COLSPEC,
-                        FormFactory.UNRELATED_GAP_COLSPEC,
-                        FormFactory.DEFAULT_COLSPEC,
-                        FormFactory.UNRELATED_GAP_COLSPEC,
-                        FormFactory.DEFAULT_COLSPEC
                 },
                 RowSpec.decodeSpecs("default"))
         );

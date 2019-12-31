@@ -121,6 +121,8 @@ public class GhostEdIterFlatObs extends OtItemEditor<ISPSeqComponent, GhostSeqRe
 
     @Override
     public void init() {
+        form.redExposureTime.setValue(getDataObject().getRedExposureTime());
+        form.blueExposureTime.setValue(getDataObject().getBlueExposureTime());
         update();
         sped.init();
         rcSped.init();
