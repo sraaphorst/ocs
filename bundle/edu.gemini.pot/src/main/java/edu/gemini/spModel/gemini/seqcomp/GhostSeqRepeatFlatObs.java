@@ -9,7 +9,7 @@ import edu.gemini.spModel.gemini.calunit.CalUnitConstants;
 import edu.gemini.spModel.gemini.calunit.CalUnitParams.*;
 import edu.gemini.spModel.gemini.init.ComponentNodeInitializer;
 import edu.gemini.spModel.obscomp.InstConstants;
-import edu.gemini.spModel.seqcomp.GhostIExpSeqComponent;
+import edu.gemini.spModel.seqcomp.GhostExpSeqComponent;
 import edu.gemini.spModel.seqcomp.GhostSeqRepeatExp;
 import edu.gemini.spModel.pio.ParamSet;
 import edu.gemini.spModel.pio.PioFactory;
@@ -22,7 +22,7 @@ import java.util.*;
  * The GHOST flat iterator, and equivalent of SeqRepeatFlatObs.
  */
 final public class GhostSeqRepeatFlatObs extends GhostSeqRepeatExp
-    implements GhostIExpSeqComponent {
+    implements GhostExpSeqComponent {
     private static final long serialVersionUID = 1L;
 
     public static final SPComponentType SP_TYPE = SPComponentType.OBSERVER_GHOST_GEMFLAT;
