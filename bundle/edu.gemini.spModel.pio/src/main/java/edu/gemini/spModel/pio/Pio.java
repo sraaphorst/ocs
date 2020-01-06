@@ -4,7 +4,6 @@
 package edu.gemini.spModel.pio;
 
 import scala.Tuple2;
-import scalaz.Alpha;
 import squants.Dimension;
 import squants.Quantity;
 
