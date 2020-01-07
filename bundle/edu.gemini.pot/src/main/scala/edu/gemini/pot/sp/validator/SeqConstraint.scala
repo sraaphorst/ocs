@@ -22,6 +22,7 @@ object SeqConstraint {
     case INSTRUMENT_ACQCAM     => ITERATOR_ACQCAM
     case INSTRUMENT_BHROS      => ITERATOR_BHROS
     case INSTRUMENT_FLAMINGOS2 => ITERATOR_FLAMINGOS2
+    case INSTRUMENT_GHOST      => ITERATOR_GHOST
     case INSTRUMENT_GMOS       => ITERATOR_GMOS
     case INSTRUMENT_GMOSSOUTH  => ITERATOR_GMOSSOUTH
     case INSTRUMENT_GNIRS      => ITERATOR_GNIRS
@@ -84,6 +85,7 @@ case class SeqConstraint private(val types: Types) extends Constraint {
       case ITERATOR_ACQCAM     => forInstrument(INSTRUMENT_ACQCAM)
       case ITERATOR_BHROS      => forInstrument(INSTRUMENT_BHROS)
       case ITERATOR_FLAMINGOS2 => forInstrument(INSTRUMENT_FLAMINGOS2)
+      case ITERATOR_GHOST      => forInstrument(INSTRUMENT_GHOST)
       case ITERATOR_GMOS       => forInstrument(INSTRUMENT_GMOS)
       case ITERATOR_GMOSSOUTH  => forInstrument(INSTRUMENT_GMOSSOUTH)
       case ITERATOR_GNIRS      => forInstrument(INSTRUMENT_GNIRS)

@@ -14,7 +14,7 @@ import edu.gemini.spModel.gemini.bhros.InstBHROS;
 import edu.gemini.spModel.gemini.bhros.SeqConfigBHROS;
 import edu.gemini.spModel.gemini.gems.Gems;
 import edu.gemini.spModel.gemini.ghost.Ghost;
-import edu.gemini.spModel.gemini.ghost.SeqConfigGhost$;
+import edu.gemini.spModel.gemini.ghost.SeqConfigGhost;
 import edu.gemini.spModel.gemini.gmos.InstGmosNorth;
 import edu.gemini.spModel.gemini.gmos.InstGmosSouth;
 import edu.gemini.spModel.gemini.gmos.SeqConfigGmosNorth;
@@ -175,7 +175,7 @@ public enum NodeInitializers {
                     SeqConfigBHROS.NI,
                     SeqConfigCalUnit.NI,
                     SeqConfigFlamingos2.NI,
-                    SeqConfigGhost$.MODULE$.NI(),
+                    SeqConfigGhost.NI,
                     SeqConfigGmosNorth.NI,
                     SeqConfigGmosSouth.NI,
                     SeqConfigGNIRS.NI,
