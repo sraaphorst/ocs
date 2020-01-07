@@ -58,6 +58,7 @@ public enum SPComponentType implements Serializable {
     ITERATOR_BHROS(ITERATOR, "BHROS", "bHROS Sequence"),
     ITERATOR_CALUNIT(ITERATOR, "CalUnit", "Cal Unit Sequence"),
     ITERATOR_FLAMINGOS2(ITERATOR, "Flamingos2", "Flamingos2 Sequence"),
+    ITERATOR_GHOST(ITERATOR, "GHOST", "GHOST Sequence"),
     ITERATOR_GMOS(ITERATOR, "GMOS", "GMOS-N Sequence"),
     ITERATOR_GMOSSOUTH(ITERATOR, "GMOSSouth", "GMOS-S Sequence"),
     ITERATOR_GNIRS(ITERATOR, "GNIRS", "GNIRS Sequence"),

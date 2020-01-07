@@ -1,13 +1,9 @@
 package edu.gemini.spModel.gemini.init;
 
-import static edu.gemini.pot.sp.SPComponentBroadType.ITERATOR;
-import static edu.gemini.pot.sp.SPComponentType.*;
 import edu.gemini.pot.sp.*;
-
 import edu.gemini.spModel.conflict.ConflictFolder;
 import edu.gemini.spModel.conflict.ConflictFolderNI;
 import edu.gemini.spModel.data.ISPDataObject;
-import edu.gemini.spModel.data.AbstractDataObject;
 import edu.gemini.spModel.gemini.acqcam.InstAcqCam;
 import edu.gemini.spModel.gemini.acqcam.SeqConfigAcqCam;
 import edu.gemini.spModel.gemini.altair.InstAltair;
@@ -18,6 +14,7 @@ import edu.gemini.spModel.gemini.bhros.InstBHROS;
 import edu.gemini.spModel.gemini.bhros.SeqConfigBHROS;
 import edu.gemini.spModel.gemini.gems.Gems;
 import edu.gemini.spModel.gemini.ghost.Ghost;
+import edu.gemini.spModel.gemini.ghost.SeqConfigGhost$;
 import edu.gemini.spModel.gemini.gmos.InstGmosNorth;
 import edu.gemini.spModel.gemini.gmos.InstGmosSouth;
 import edu.gemini.spModel.gemini.gmos.SeqConfigGmosNorth;
@@ -71,7 +68,6 @@ import edu.gemini.shared.util.immutable.Option;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -179,6 +175,7 @@ public enum NodeInitializers {
                     SeqConfigBHROS.NI,
                     SeqConfigCalUnit.NI,
                     SeqConfigFlamingos2.NI,
+                    SeqConfigGhost$.MODULE$.NI(),
                     SeqConfigGmosNorth.NI,
                     SeqConfigGmosSouth.NI,
                     SeqConfigGNIRS.NI,
