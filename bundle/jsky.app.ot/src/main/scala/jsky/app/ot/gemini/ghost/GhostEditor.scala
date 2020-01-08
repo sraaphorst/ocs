@@ -9,7 +9,6 @@ import edu.gemini.shared.gui.bean.{CheckboxPropertyCtrl, ComboPropertyCtrl, Radi
 import edu.gemini.shared.util.immutable.ScalaConverters._
 import edu.gemini.spModel.gemini.ghost.{AsterismTypeConverters, Ghost, GhostAsterism, GhostBinning, GhostReadNoiseGain}
 import edu.gemini.spModel.gemini.ghost.AsterismConverters._
-import edu.gemini.spModel.gemini.ghost._
 import edu.gemini.spModel.gemini.ghost.GhostAsterism._
 import edu.gemini.spModel.gemini.ghost.GhostAsterism.HighResolution._
 import edu.gemini.spModel.gemini.ghost.GhostAsterism.StandardResolution._
@@ -312,17 +311,6 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
       }
       row += 1
 
-      val blueReadNoiseGain: RadioPropertyCtrl[Ghost, GhostReadNoiseGain] = new RadioPropertyCtrl[Ghost, GhostReadNoiseGain](Ghost.BLUE_READ_NOISE_GAIN_PROP)
-      layout(Component.wrap(blueReadNoiseGain.getComponent)) = new Constraints() {
-        anchor = Anchor.NorthWest
-        gridx = 0
-        gridy = row
-        gridwidth = 7
-        fill = Fill.Horizontal
-        insets = new Insets(15, 30, 0, 0)
-      }
-      row += 1
-
       val blueCountLabel = new Label("Blue Exposure Count:")
       blueCountLabel.horizontalAlignment = Alignment.Right
       layout(blueCountLabel) = new Constraints() {
@@ -352,6 +340,17 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
         gridx = 2
         gridy = row
         insets = new Insets(3, 0, 0, 20)
+      }
+      row += 1
+
+      val blueReadNoiseGain: RadioPropertyCtrl[Ghost, GhostReadNoiseGain] = new RadioPropertyCtrl[Ghost, GhostReadNoiseGain](Ghost.BLUE_READ_NOISE_GAIN_PROP)
+      layout(Component.wrap(blueReadNoiseGain.getComponent)) = new Constraints() {
+        anchor = Anchor.NorthWest
+        gridx = 0
+        gridy = row
+        gridwidth = 7
+        fill = Fill.Horizontal
+        insets = new Insets(15, 30, 0, 0)
       }
       row += 1
     }
@@ -555,20 +554,19 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
         // The asterism type.
         val asterismType = asterismComboBox.selection.item
 
+        // Update the contents of the asterism combo box to only allow asterisms of this resolution mode
+        // and make sure we are at the selected mode.
+        // We need to set a new model: we cannot modify the model directly as per Scala Swing.
+        asterismComboBox.peer.setModel(new DefaultComboBoxModel[AsterismType]())
+        newResolutionMode.asterismTypes.asScala.foreach(asterismComboBox.peer.addItem)
+
         // If they are not the same, convert the asterism type from the old resolution mode
         // to the new resolution mode and store.
         if (originalResolutionMode != newResolutionMode) {
           val newAsterismType = AsterismTypeConverters.asterismTypeConverters((originalResolutionMode, asterismType, newResolutionMode))
           newAsterismType.converter.asScalaOpt.foreach(convertAsterism)
-
-          // Update the contents of the asterism combo box to only allow asterisms of this resolution mode
-          // and make sure we are at the selected mode.
-          // We need to set a new model: we cannot modify the model directly as per Scala Swing.
-          asterismComboBox.peer.setModel(new DefaultComboBoxModel[AsterismType]())
-          newResolutionMode.asterismTypes.asScala.foreach(asterismComboBox.peer.addItem)
           asterismComboBox.selection.item = newAsterismType
         }
-
         listenTo(asterismComboBox.selection)
         listenTo(resolutionModeComboBox.selection)
       }
