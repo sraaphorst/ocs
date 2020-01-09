@@ -230,6 +230,8 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
         gridy = row
         insets = new Insets(0, 0, 0, LabelPadding)
       }
+      redCountSpinner.setPreferredSize(redExpTimeCtrl.getComponent.getPreferredSize)
+      redCountSpinner.setMinimumSize(redExpTimeCtrl.getComponent.getMinimumSize)
       val redCountSpinnerEditor: SpinnerEditor = new SpinnerEditor(redCountSpinner, new SpinnerEditor.Functions() {
         override def getValue: Int = getDataObject.getRedExposureCount
         override def setValue(newValue: Int): Unit = {
@@ -327,6 +329,8 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
         gridy = row
         insets = new Insets(0, 0, 0, LabelPadding)
       }
+      blueCountSpinner.setPreferredSize(blueExpTimeCtrl.getComponent.getPreferredSize)
+      blueCountSpinner.setMinimumSize(blueExpTimeCtrl.getComponent.getMinimumSize)
       val blueCountSpinnerEditor: SpinnerEditor = new SpinnerEditor(blueCountSpinner, new SpinnerEditor.Functions() {
         override def getValue: Int = getDataObject.getBlueExposureCount
         override def setValue(newValue: Int): Unit = {
