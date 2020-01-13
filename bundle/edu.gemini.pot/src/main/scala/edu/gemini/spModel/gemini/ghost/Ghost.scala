@@ -307,6 +307,10 @@ object Ghost {
   val DEF_EXPOSURE_TIME_BLUE = 10.0
   val EXPOSURE_TIME_BLUE_KEY = new ItemKey(INSTRUMENT_KEY, EXPOSURE_TIME_BLUE_PROP)
 
+  // The resolultion mode and the asterism type.
+  val ResolutionMode: String = "resolutionMode"
+  val AsterismType: String = "asterismType"
+
   // The names of the base position / IFUs.
   val BaseRADegrees: String  = "baseRADeg"
   val BaseRAHMS: String      = "baseRAHMS"

@@ -67,8 +67,15 @@ final class GhostCB(obsComp: ISPObsComponent) extends AbstractObsComponentCB(obs
       getObsComponent.getContextObservation.getObsComponents.asScala.
         find(_.getType.broadType === TargetObsComp.SP_TYPE.broadType).
         map(_.getDataObject.asInstanceOf[TargetObsComp]).
-        foreach{_.getAsterism match {
+        foreach{toc =>
+          config.putParameter(systemName, DefaultParameter.getInstance(Ghost.ResolutionMode, toc.getAsterism.resolutionMode.name()))
+          config.putParameter(systemName, DefaultParameter.getInstance(Ghost.AsterismType, toc.getAsterism.asterismType.name()))
+          toc.getAsterism match {
           case gsr: GhostAsterism.StandardResolution =>
+            // Write the resolution mode and asterism type.
+            //config.putParameter(systemName, StringParameter.getInstance(Ghost.ResolutionMode, gsr.resolutionMode.name()))
+            //config.putParameter(systemName, StringParameter.getInstance(Ghost.AsterismType, gsr.asterismType.name()))
+
             gsr.overriddenBase.foreach(b => coordParam(b, None,
               Ghost.BaseRADegrees, Ghost.BaseDecDegrees,
               Ghost.BaseRAHMS, Ghost.BaseDecDMS))
@@ -86,6 +93,9 @@ final class GhostCB(obsComp: ISPObsComponent) extends AbstractObsComponentCB(obs
                 Ghost.SRIFU2RAHMS, Ghost.SRIFU2DecDMS)))
 
           case ghr: GhostAsterism.HighResolution =>
+            //config.putParameter(systemName, StringParameter.getInstance(Ghost.ResolutionMode, ghr.resolutionMode.name()))
+            //config.putParameter(systemName, StringParameter.getInstance(Ghost.AsterismType, ghr.asterismType.name()))
+
             ghr.overriddenBase.foreach(b => coordParam(b, None,
               Ghost.BaseRADegrees, Ghost.BaseDecDegrees,
               Ghost.BaseRAHMS, Ghost.BaseDecDMS))
