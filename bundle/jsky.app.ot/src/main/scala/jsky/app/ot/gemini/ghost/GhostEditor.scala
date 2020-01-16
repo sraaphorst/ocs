@@ -566,9 +566,7 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
 
         // If they are not the same, convert the asterism type from the old resolution mode
         // to the new resolution mode and store.
-        println("**** CHANGING RESOLUTION MODE")
         if (originalResolutionMode != newResolutionMode) {
-          println("**** RESOLUTION MODE DIFFERENT")
           val newAsterismType = AsterismTypeConverters.asterismTypeConverters((originalResolutionMode, asterismType, newResolutionMode))
           newAsterismType.converter.asScalaOpt.foreach(converter => convertAsterism(converter, newResolutionMode))
           asterismComboBox.selection.item = newAsterismType
@@ -606,9 +604,6 @@ final class GhostEditor extends ComponentEditor[ISPObsComponent, Ghost] {
       } {
         toc.setTargetEnvironment(env)
         oc.setDataObject(toc)
-        println(s"*** Converter: ${converter.name}")
-        println(s"*** Requested resolution mode: $newResolutionMode")
-        println(s"*** RESOLUTION MODE: ${getContextTargetObsComp.getDataObject.asInstanceOf[TargetObsComp].getTargetEnvironment.getAsterism.resolutionMode.name()}")
         asterismComboBox.enabled = true
         initIFUs()
       }

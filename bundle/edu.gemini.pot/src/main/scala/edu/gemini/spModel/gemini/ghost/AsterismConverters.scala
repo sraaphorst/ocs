@@ -22,7 +22,7 @@ object AsterismConverters {
     // We pass in the desired ResolutionMode.
     // Most of the time, this is ignored, but we need it to differentiate between GhostHigh and PRV
     // when doing conversions.
-    def convert(env: TargetEnvironment, rm: Option[ResolutionMode]): Option[TargetEnvironment]
+    def convert(env: TargetEnvironment, rm: Option[ResolutionMode] = None): Option[TargetEnvironment]
   }
 
   // We need special handling of the HighResolutionTarget because it can be GhostHigh or PRV resolution modes.
@@ -92,9 +92,8 @@ object AsterismConverters {
     override val name: String = "GhostAsterism.HighResolutionTarget"
 
     override protected def creator(env: TargetEnvironment, t: GhostTarget, t2: Option[GhostTarget], s: SkyPosition, b: BasePosition, rm: Option[ResolutionMode] = None): TargetEnvironment = {
-      Thread.dumpStack();
-      println("********* CREATOR")
-      println(s"****** RM: ${rm}")
+      // In this case, the resolution mode could be GhostHigh (default) or PRV, so we have to allow a resolution mode
+      // to be passed in.
       val asterism    = HighResolutionTarget(t, b, rm.getOrElse(ResolutionMode.GhostHigh))
       val userTargets = appendTarget(env.getUserTargets, gT2UT(t2))
       TargetEnvironment.createWithClonedTargets(asterism, env.getGuideEnvironment, userTargets)
