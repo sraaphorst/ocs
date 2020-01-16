@@ -101,6 +101,6 @@ object AsterismConvertersSpec extends Specification with ScalaCheck with Arbitra
 
   private def twoWayTest(gen: Gen[TargetEnvironment], c1: GhostAsterismConverter, c2: GhostAsterismConverter): Prop =
     forAll(gen) { env =>
-      c1.convert(env).flatMap(c2.convert).exists(_ ~= env) should beTrue
+      c1.convert(env).flatMap(env => c2.convert(env, None)).exists(_ ~= env) should beTrue
     }
 }

@@ -203,7 +203,7 @@ object GhostAsterism {
       NonEmptyList(target.spTarget)
 
     override def allSpCoordinates: List[SPCoordinates] = this match {
-      case HighResolutionTarget(_,b)          => b.toList
+      case HighResolutionTarget(_,b,_)        => b.toList
       case HighResolutionTargetPlusSky(_,s,b) => b.toList :+ s
     }
 
@@ -215,42 +215,48 @@ object GhostAsterism {
       Target.pm.get(target.spTarget.getTarget)
 
     override def copyWithClonedTargets: Asterism = this match {
-      case HighResolutionTarget(t,b) => HighResolutionTarget(t.copyWithClonedTarget, b.map(_.clone))
+      case HighResolutionTarget(t,b,rm) => HighResolutionTarget(t.copyWithClonedTarget, b.map(_.clone),rm)
       case HighResolutionTargetPlusSky(t,s,b) => HighResolutionTargetPlusSky(t.copyWithClonedTarget, s.clone, b.map(_.clone))
     }
 
     override def resolutionMode: ResolutionMode = ResolutionMode.GhostHigh
 
     override def asterismType: AsterismType = this match {
-      case HighResolutionTarget(_,_)          => AsterismType.GhostHighResolutionTarget
+      case HighResolutionTarget(_,_,_)        => AsterismType.GhostHighResolutionTarget
       case HighResolutionTargetPlusSky(_,_,_) => AsterismType.GhostHighResolutionTargetPlusSky
     }
 
     def hrifu1: GhostTarget = this match {
-      case HighResolutionTarget(t,_)          => t
+      case HighResolutionTarget(t,_,_)          => t
       case HighResolutionTargetPlusSky(t,_,_) => t
     }
     def hrifu2: Option[SPCoordinates] = this match {
-      case HighResolutionTarget(_,_)          => None
+      case HighResolutionTarget(_,_,_)          => None
       case HighResolutionTargetPlusSky(_,s,_) => Some(s)
     }
   }
 
+  /** We allow specification of the resolution mode here because we can have either GhostHigh or PRV resolution
+    * for this asterism type.
+    */
   final case class HighResolutionTarget(target: GhostTarget,
-                                        override val overriddenBase: Option[SPCoordinates]) extends HighResolution(target)
+                                        override val overriddenBase: Option[SPCoordinates],
+                                        override val resolutionMode: ResolutionMode) extends HighResolution(target)
 
   final case class HighResolutionTargetPlusSky(target: GhostTarget,
                                                sky:    SPCoordinates,
                                                override val overriddenBase: Option[SPCoordinates]) extends HighResolution(target)
 
   object HighResolution {
-    val emptyHRTarget: HighResolutionTarget = HighResolutionTarget(GhostTarget.empty, None)
+    val emptyHRTarget: HighResolutionTarget = HighResolutionTarget(GhostTarget.empty, None, ResolutionMode.GhostHigh)
     val emptyHRTargetPlusSky: HighResolutionTargetPlusSky = HighResolutionTargetPlusSky(GhostTarget.empty, new SPCoordinates, None)
 
     val HRTargetIFU1: HighResolutionTarget @> GhostTarget =
       Lens.lensu((a,b) => a.copy(target = b), _.target)
     val HRTargetOverriddenBase: HighResolutionTarget @> Option[SPCoordinates] =
       Lens.lensu((a,b) => a.copy(overriddenBase = b), _.overriddenBase)
+    val HRTargetResolutionMode: HighResolutionTarget @> ResolutionMode =
+      Lens.lensu((a,b) => a.copy(resolutionMode = b), _.resolutionMode)
 
     val HRTargetPlusSkyIFU1: HighResolutionTargetPlusSky @> GhostTarget =
       Lens.lensu((a,b) => a.copy(target = b), _.target)

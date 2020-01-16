@@ -246,13 +246,13 @@ trait Arbitraries extends edu.gemini.spModel.core.Arbitraries {
 
     // HIGH RESOLUTION TARGET
     val genHighResTargetNoBase: Gen[HighResolutionTarget] =
-      arbitrary[GhostTarget].map(t => HighResolutionTarget(t, None))
+      arbitrary[GhostTarget].map(t => HighResolutionTarget(t, None, ResolutionMode.GhostHigh))
 
     val genHighResTargetWithBase: Gen[HighResolutionTarget] =
       for {
         bc :: tc :: _ <- coordinateGen(2)
         t <- ghostTargetWithCoords(tc)
-      } yield HighResolutionTarget(t, Some(new SPCoordinates(bc)))
+      } yield HighResolutionTarget(t, Some(new SPCoordinates(bc)), ResolutionMode.GhostHigh)
 
     // HIGH RESOLUTION TARGET + SKY
     val genHighResTargetPlusSkyNoBase: Gen[HighResolutionTargetPlusSky] =
