@@ -1,7 +1,6 @@
 package edu.gemini.spModel.gemini.ghost
 
 import java.beans.PropertyDescriptor
-import java.util
 import java.util.logging.Logger
 import java.util.{Collections, List => JList, Map => JMap, Set => JSet}
 
@@ -258,7 +257,7 @@ final class Ghost extends SPInstObsComp(GhostMixin.SP_TYPE) with PropertyProvide
   }
 
   override def calc(cur: Config, prev: JOption[Config]): CategorizedTimeGroup = {
-    val times: util.Collection[CategorizedTime] = new util.ArrayList[CategorizedTime]()
+    val times: java.util.Collection[CategorizedTime] = new java.util.ArrayList[CategorizedTime]()
     
     // TODO-GHOST: Default values
     times.add(CategorizedTime.fromSeconds(Category.READOUT, 60))
