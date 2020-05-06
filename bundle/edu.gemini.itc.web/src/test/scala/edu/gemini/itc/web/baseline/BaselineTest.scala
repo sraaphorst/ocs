@@ -25,7 +25,6 @@ import org.junit.{Ignore, Test}
  *
  */
 class BaselineTest {
-  @Ignore
   @Test
   def create(): Unit = {
     val baseSeq = baselines()
